@@ -57,9 +57,7 @@ func (l *Lexer) NextToken() token.Token {
 			fmt.Println(string(l.currentChar))
 			tok = newToken(token.ILLEGAL, l.currentChar)
 		}
-
 	}
-
 	return tok
 }
 
@@ -96,10 +94,6 @@ func (l *Lexer) peekNext() rune {
 func newToken(tokenType token.TokenType, char rune) token.Token {
 	return token.Token{Type: tokenType, Literal: string(char)}
 }
-
-// func (l *Lexer) readIdentifier() string {
-
-// }
 
 func (l *Lexer) readNumber() token.Token {
 	tok := &token.Token{Type: token.INT}
