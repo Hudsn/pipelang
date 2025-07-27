@@ -5,31 +5,13 @@ type TokenType string
 type Token struct {
 	Literal string
 	Type    TokenType
-	Start   Position
-	End     Position
+	Line    int
+	Col     int
 }
 
-func (t *Token) SetPositions(line int, col int) {
-	t.Start.Set(line, col)
-	t.End.Set(line, col)
-}
-
-func (t *Token) SetStart(line int, col int) {
-	t.Start.Set(line, col)
-}
-
-func (t *Token) SetEnd(line int, col int) {
-	t.End.Set(line, col)
-}
-
-type Position struct {
-	Line int
-	Col  int
-}
-
-func (p *Position) Set(line int, col int) {
-	p.Line = line
-	p.Col = col
+func (t *Token) SetPosition(line int, col int) {
+	t.Line = line
+	t.Col = col
 }
 
 const (

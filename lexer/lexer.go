@@ -22,7 +22,8 @@ type Lexer struct {
 func New(input []rune) *Lexer {
 	l := &Lexer{
 		input:   input,
-		lineNum: 0,
+		lineNum: 1,
+		colNum:  1,
 	}
 	l.readNext()
 
@@ -32,24 +33,23 @@ func New(input []rune) *Lexer {
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
-	l.handleWhitespace(false)
+	l.handleWhitespace()
 
 	switch l.currentChar {
 	case rune(0):
 	case ';':
 		tok = newToken(token.SEMICOLON, l.currentChar)
-		tok.SetPositions(l.lineNum, l.colNum)
+		tok.SetPosition(l.lineNum, l.colNum)
 		l.readNext()
 	case '.':
 		tok = newToken(token.DOT, l.currentChar)
-		tok.SetPositions(l.lineNum, l.colNum)
+		tok.SetPosition(l.lineNum, l.colNum)
 	case '"':
 	case '\'':
 
 	default:
 		if isDigit(l.currentChar) {
 			tok = l.readNumber()
-			l.handleWhitespace(true)
 		} else if isLetter(l.currentChar) {
 			// tok = l.readIdentifier()
 			tok = newToken(token.ILLEGAL, l.currentChar)
@@ -63,12 +63,12 @@ func (l *Lexer) NextToken() token.Token {
 
 func (l *Lexer) readNext() {
 	if l.currentChar == '\n' {
-		// any newline should reset col to 0 and increment the line count
-		l.colNum = 0
+		// any newline should reset col to 1 and increment the line count
+		l.colNum = 1
 		l.lineNum++
 	} else if l.currentIdx == l.nextIdx {
 		// only true if we just initialized our lexer
-		l.colNum = 0
+		l.colNum = 1
 	} else {
 		// otherwise we just prog the char count of the current line
 		l.colNum += 1
@@ -81,7 +81,6 @@ func (l *Lexer) readNext() {
 	}
 	l.currentIdx = l.nextIdx
 	l.nextIdx += 1
-
 }
 
 func (l *Lexer) peekNext() rune {
@@ -97,7 +96,7 @@ func newToken(tokenType token.TokenType, char rune) token.Token {
 
 func (l *Lexer) readNumber() token.Token {
 	tok := &token.Token{Type: token.INT}
-	tok.SetStart(l.lineNum, l.colNum)
+	tok.SetPosition(l.lineNum, l.colNum)
 	startIdx := l.currentIdx
 	encounteredDot := false
 	for isDigit(l.currentChar) || l.currentChar == '.' {
@@ -113,29 +112,29 @@ func (l *Lexer) readNumber() token.Token {
 	}
 	literal := string(l.input[startIdx:l.currentIdx])
 	tok.Literal = literal
-	tok.SetEnd(l.lineNum, l.colNum-1)
 	return *tok
 }
 
-func (l *Lexer) handleWhitespace(addMissingSemicolons bool) {
+func (l *Lexer) handleWhitespace() {
 	for slices.Contains([]rune{'\r', '\n', '\t', ' '}, l.currentChar) {
-
-		if addMissingSemicolons && (l.currentChar != '\n' || l.currentChar != '\r') {
-			l.maybeAddSemicolon()
-		}
 		l.readNext()
 	}
 }
 
 func (l *Lexer) maybeAddSemicolon() {
-	shouldAddSemi := false
-	if l.currentChar == '\r' && l.peekNext() == '\n' {
-		shouldAddSemi = true
+	shouldAddSemicolon := false
+
+	for slices.Contains([]rune{'\r', '\n', '\t', ' '}, l.currentChar) {
+		switch l.currentChar {
+		case '\r':
+			if l.peekNext() == '\n' {
+				shouldAddSemicolon = true
+			}
+		case '\n':
+			shouldAddSemicolon = true
+		}
 	}
-	if l.currentChar == '\n' {
-		shouldAddSemi = true
-	}
-	if !shouldAddSemi {
+	if !shouldAddSemicolon {
 		return
 	}
 
