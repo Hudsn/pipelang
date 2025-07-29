@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/hudsn/pipelang/token"
 )
@@ -34,15 +35,56 @@ func (l *Lexer) NextToken() token.Token {
 	l.handleWhitespace()
 
 	switch l.currentChar {
+	case rune(0):
+		tok = newToken(token.EOF, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.currentChar)
 		tok.SetPosition(l.lineNum, l.colNum)
 	case '.':
 		tok = newToken(token.DOT, l.currentChar)
 		tok.SetPosition(l.lineNum, l.colNum)
+	case ',':
+		tok = newToken(token.COMMA, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
 	case '"':
+		tok = l.readString()
+		return tok
 	case '\'':
-
+		tok = l.readString()
+		return tok
+	case '=':
+		tok = l.handleEquals()
+	case '>':
+		tok = l.handleGT()
+	case '<':
+		tok = l.handleLT()
+	case '!':
+		tok = l.handleExclamation()
+	case '+':
+		tok = newToken(token.PLUS, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+	case '*':
+		tok = newToken(token.ASTERISK, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+	case '/':
+		tok = newToken(token.SLASH, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+	case '-':
+		tok = newToken(token.MINUS, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+	case '$':
+		tok = l.readIdentifier()
+		return tok
+	case '[':
+		tok = newToken(token.LSQUARE, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+	case ']':
+		tok = newToken(token.RSQUARE, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+		l.readNext()
+		l.maybeAddSemicolon()
+		return tok
 	default:
 		if isDigit(l.currentChar) {
 			tok = l.readNumber()
@@ -53,6 +95,7 @@ func (l *Lexer) NextToken() token.Token {
 			return tok
 		} else {
 			tok = newToken(token.ILLEGAL, l.currentChar)
+			tok.SetPosition(l.lineNum, l.colNum)
 		}
 	}
 
@@ -115,19 +158,42 @@ func (l *Lexer) readNumber() token.Token {
 }
 
 func (l *Lexer) readIdentifier() token.Token {
-	tok := &token.Token{Type: token.IDENT}
+	tok := &token.Token{}
 	tok.SetPosition(l.lineNum, l.colNum)
 	start := l.currentIdx
-
+	if l.currentChar == '$' {
+		l.readNext()
+	}
 	for isLetter(l.currentChar) || isRecognizedLineChar(l.currentChar) {
 		l.readNext()
 	}
 
 	tok.Literal = string(l.input[start:l.currentIdx])
+	tok.Type = token.LookupKeyword(tok.Literal)
+
+	// if we don't find any $keywords, we return an illegal token since the only valid $ words should be predefined
+	if tok.Type == token.IDENT && strings.HasPrefix(tok.Literal, "$") {
+		tok.Type = token.ILLEGAL
+	}
+
+	l.maybeAddSemicolon()
 	return *tok
 }
 
-func (l *Lexer) readString() token.Token //TODO
+func (l *Lexer) readString() token.Token {
+	tok := &token.Token{Type: token.STRING}
+	tok.SetPosition(l.lineNum, l.colNum)
+	endChar := l.currentChar
+	l.readNext()
+	start := l.currentIdx
+	for l.currentChar != endChar && l.currentChar != rune(0) {
+		l.readNext()
+	}
+	tok.Literal = string(l.input[start:l.currentIdx])
+	l.readNext() // go from end quote to next char
+	l.maybeAddSemicolon()
+	return *tok
+}
 
 func (l *Lexer) handleWhitespace() {
 	for slices.Contains([]rune{'\r', '\n', '\t', ' '}, l.currentChar) {
@@ -136,6 +202,68 @@ func (l *Lexer) handleWhitespace() {
 }
 
 // Other helpers
+
+func (l *Lexer) handleEquals() token.Token {
+	tok := &token.Token{
+		Type:    token.ASSIGN,
+		Literal: string(l.currentChar),
+	}
+	tok.SetPosition(l.lineNum, l.colNum)
+	if l.peekNext() == '=' {
+		start := l.currentIdx
+		l.readNext()
+		tok.Type = token.EQ
+		tok.Literal = string(l.input[start:l.nextIdx])
+		return *tok
+	}
+	return *tok
+}
+func (l *Lexer) handleExclamation() token.Token {
+	tok := &token.Token{
+		Type:    token.EXCLAMATION,
+		Literal: string(l.currentChar),
+	}
+	tok.SetPosition(l.lineNum, l.colNum)
+	if l.peekNext() == '=' {
+		start := l.currentIdx
+		l.readNext()
+		tok.Type = token.NOT_EQ
+		tok.Literal = string(l.input[start:l.nextIdx])
+		return *tok
+	}
+	return *tok
+}
+
+func (l *Lexer) handleGT() token.Token {
+	tok := &token.Token{
+		Type:    token.GT,
+		Literal: string(l.currentChar),
+	}
+	tok.SetPosition(l.lineNum, l.colNum)
+	if l.peekNext() == '=' {
+		start := l.currentIdx
+		l.readNext()
+		tok.Type = token.GTEQ
+		tok.Literal = string(l.input[start:l.nextIdx])
+		return *tok
+	}
+	return *tok
+}
+func (l *Lexer) handleLT() token.Token {
+	tok := &token.Token{
+		Type:    token.LT,
+		Literal: string(l.currentChar),
+	}
+	tok.SetPosition(l.lineNum, l.colNum)
+	if l.peekNext() == '=' {
+		start := l.currentIdx
+		l.readNext()
+		tok.Type = token.LTEQ
+		tok.Literal = string(l.input[start:l.nextIdx])
+		return *tok
+	}
+	return *tok
+}
 
 func (l *Lexer) maybeAddSemicolon() {
 	shouldAddSemicolon := false
