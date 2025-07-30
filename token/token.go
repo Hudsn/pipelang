@@ -53,6 +53,7 @@ const (
 	//keywords
 	FUNCTION TokenType = "FUNCTION"
 	PIPELINE TokenType = "PIPELINE"
+	RETURN   TokenType = "RETURN"
 
 	// global var accessors
 	ENV  TokenType = "ENV"
@@ -74,6 +75,7 @@ func LookupKeyword(ident string) TokenType {
 var keywordTable = map[string]TokenType{
 	"fn":      FUNCTION,
 	"pipeine": PIPELINE,
+	"return":  RETURN,
 
 	"$env":  ENV,
 	"$src":  SRC,

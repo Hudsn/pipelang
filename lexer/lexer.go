@@ -76,11 +76,29 @@ func (l *Lexer) NextToken() token.Token {
 	case '$':
 		tok = l.readIdentifier()
 		return tok
+	case '(':
+		tok = newToken(token.LPAREN, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+	case ')':
+		tok = newToken(token.RPAREN, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+		l.readNext()
+		l.maybeAddSemicolon()
+		return tok
 	case '[':
 		tok = newToken(token.LSQUARE, l.currentChar)
 		tok.SetPosition(l.lineNum, l.colNum)
 	case ']':
 		tok = newToken(token.RSQUARE, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+		l.readNext()
+		l.maybeAddSemicolon()
+		return tok
+	case '{':
+		tok = newToken(token.LCURLY, l.currentChar)
+		tok.SetPosition(l.lineNum, l.colNum)
+	case '}':
+		tok = newToken(token.RCURLY, l.currentChar)
 		tok.SetPosition(l.lineNum, l.colNum)
 		l.readNext()
 		l.maybeAddSemicolon()

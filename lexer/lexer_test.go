@@ -360,6 +360,78 @@ func TestLexer(t *testing.T) {
 			Line:    12,
 			Col:     2,
 		}},
+		{token.Token{
+			Type:    token.LPAREN,
+			Literal: "(",
+			Line:    12,
+			Col:     4,
+		}},
+		{token.Token{
+			Type:    token.IDENT,
+			Literal: "x",
+			Line:    12,
+			Col:     5,
+		}},
+		{token.Token{
+			Type:    token.COMMA,
+			Literal: ",",
+			Line:    12,
+			Col:     6,
+		}},
+		{token.Token{
+			Type:    token.IDENT,
+			Literal: "y",
+			Line:    12,
+			Col:     8,
+		}},
+		{token.Token{
+			Type:    token.RPAREN,
+			Literal: ")",
+			Line:    12,
+			Col:     9,
+		}},
+		{token.Token{
+			Type:    token.LCURLY,
+			Literal: "{",
+			Line:    12,
+			Col:     10,
+		}},
+		{token.Token{
+			Type:    token.RETURN,
+			Literal: "return",
+			Line:    12,
+			Col:     11,
+		}},
+		{token.Token{
+			Type:    token.IDENT,
+			Literal: "x",
+			Line:    12,
+			Col:     18,
+		}},
+		{token.Token{
+			Type:    token.PLUS,
+			Literal: "+",
+			Line:    12,
+			Col:     20,
+		}},
+		{token.Token{
+			Type:    token.IDENT,
+			Literal: "y",
+			Line:    12,
+			Col:     22,
+		}},
+		{token.Token{
+			Type:    token.RCURLY,
+			Literal: "}",
+			Line:    12,
+			Col:     23,
+		}},
+		{token.Token{
+			Type:    token.SEMICOLON,
+			Literal: ";",
+			Line:    12,
+			Col:     24,
+		}},
 	}
 
 	// fn(x, y){return x + y}
