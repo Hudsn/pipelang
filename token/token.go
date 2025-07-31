@@ -6,8 +6,8 @@ type Token struct {
 	Position Position
 }
 
-func (t *Token) SetPosition(start int, end int) Position {
-	return Position{
+func (t *Token) SetPosition(start int, end int) {
+	t.Position = Position{
 		start: start,
 		end:   end,
 	}
@@ -69,6 +69,9 @@ const (
 
 	//keywords
 	PIPEDEF // "pipe"
+	IF
+	ELSE
+	NULL
 
 	//mem accessors
 	ENV  // "$env"
@@ -94,4 +97,7 @@ var keywordTable = map[string]TokenType{
 	"$var":  VAR,
 	"$src":  SRC,
 	"$dest": DEST,
+	"if":    IF,
+	"else":  ELSE,
+	"null":  NULL,
 }
