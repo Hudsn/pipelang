@@ -17,14 +17,15 @@ func TestLexer(t *testing.T) {
 	"two strings" 'one line'
 	math = 1 + 1 - 1 / 1 * 1
 	1 = 1 < 2 > 3 <= 4 >= 3 != 0 == 0
-	$src $dest $env $madeup
+	$src $dest $env $var $madeup
 	[1, "a", ident]
-	fn(x, y){return x + y}
-	pipeline mypipe {
-		|func1
-		|func2(arg)
+	{"key1" : 1, "key2" : 1.234}
+	pipe mypipe {
+		| otherPipe
+		| func1()
+		| func2(arg)
 	}
-	`
+`
 
 	l := New([]rune(input))
 	tests := []struct {
@@ -295,16 +296,22 @@ func TestLexer(t *testing.T) {
 			Col:     13,
 		}},
 		{token.Token{
+			Type:    token.VAR,
+			Literal: "$var",
+			Line:    10,
+			Col:     18,
+		}},
+		{token.Token{
 			Type:    token.ILLEGAL,
 			Literal: "$madeup",
 			Line:    10,
-			Col:     18,
+			Col:     23,
 		}},
 		{token.Token{
 			Type:    token.SEMICOLON,
 			Literal: ";",
 			Line:    10,
-			Col:     25,
+			Col:     30,
 		}},
 		{token.Token{
 			Type:    token.LSQUARE,
@@ -355,91 +362,186 @@ func TestLexer(t *testing.T) {
 			Col:     17,
 		}},
 		{token.Token{
-			Type:    token.FUNCTION,
-			Literal: "fn",
+			Type:    token.LCURLY,
+			Literal: "{",
 			Line:    12,
 			Col:     2,
 		}},
 		{token.Token{
-			Type:    token.LPAREN,
-			Literal: "(",
+			Type:    token.STRING,
+			Literal: "key1",
 			Line:    12,
-			Col:     4,
+			Col:     3,
 		}},
 		{token.Token{
-			Type:    token.IDENT,
-			Literal: "x",
+			Type:    token.COLON,
+			Literal: ":",
 			Line:    12,
-			Col:     5,
+			Col:     10,
+		}},
+		{token.Token{
+			Type:    token.INT,
+			Literal: "1",
+			Line:    12,
+			Col:     12,
 		}},
 		{token.Token{
 			Type:    token.COMMA,
 			Literal: ",",
 			Line:    12,
-			Col:     6,
+			Col:     13,
 		}},
 		{token.Token{
-			Type:    token.IDENT,
-			Literal: "y",
+			Type:    token.STRING,
+			Literal: "key2",
 			Line:    12,
-			Col:     8,
+			Col:     15,
 		}},
 		{token.Token{
-			Type:    token.RPAREN,
-			Literal: ")",
-			Line:    12,
-			Col:     9,
-		}},
-		{token.Token{
-			Type:    token.LCURLY,
-			Literal: "{",
-			Line:    12,
-			Col:     10,
-		}},
-		{token.Token{
-			Type:    token.RETURN,
-			Literal: "return",
-			Line:    12,
-			Col:     11,
-		}},
-		{token.Token{
-			Type:    token.IDENT,
-			Literal: "x",
-			Line:    12,
-			Col:     18,
-		}},
-		{token.Token{
-			Type:    token.PLUS,
-			Literal: "+",
-			Line:    12,
-			Col:     20,
-		}},
-		{token.Token{
-			Type:    token.IDENT,
-			Literal: "y",
+			Type:    token.COLON,
+			Literal: ":",
 			Line:    12,
 			Col:     22,
+		}},
+		{token.Token{
+			Type:    token.FLOAT,
+			Literal: "1.234",
+			Line:    12,
+			Col:     24,
 		}},
 		{token.Token{
 			Type:    token.RCURLY,
 			Literal: "}",
 			Line:    12,
-			Col:     23,
+			Col:     29,
 		}},
 		{token.Token{
 			Type:    token.SEMICOLON,
 			Literal: ";",
 			Line:    12,
-			Col:     24,
+			Col:     30,
+		}},
+		{token.Token{
+			Type:    token.PIPEDEF,
+			Literal: "pipe",
+			Line:    13,
+			Col:     2,
+		}},
+		{token.Token{
+			Type:    token.IDENT,
+			Literal: "mypipe",
+			Line:    13,
+			Col:     7,
+		}},
+		{token.Token{
+			Type:    token.LCURLY,
+			Literal: "{",
+			Line:    13,
+			Col:     14,
+		}},
+		{token.Token{
+			Type:    token.PIPECHAR,
+			Literal: "|",
+			Line:    14,
+			Col:     3,
+		}},
+		{token.Token{
+			Type:    token.IDENT,
+			Literal: "otherPipe",
+			Line:    14,
+			Col:     5,
+		}},
+		{token.Token{
+			Type:    token.SEMICOLON,
+			Literal: ";",
+			Line:    14,
+			Col:     14,
+		}},
+		{token.Token{
+			Type:    token.PIPECHAR,
+			Literal: "|",
+			Line:    15,
+			Col:     3,
+		}},
+		{token.Token{
+			Type:    token.IDENT,
+			Literal: "func1",
+			Line:    15,
+			Col:     5,
+		}},
+		{token.Token{
+			Type:    token.LPAREN,
+			Literal: "(",
+			Line:    15,
+			Col:     10,
+		}},
+		{token.Token{
+			Type:    token.RPAREN,
+			Literal: ")",
+			Line:    15,
+			Col:     11,
+		}},
+		{token.Token{
+			Type:    token.SEMICOLON,
+			Literal: ";",
+			Line:    15,
+			Col:     12,
+		}},
+		{token.Token{
+			Type:    token.PIPECHAR,
+			Literal: "|",
+			Line:    16,
+			Col:     3,
+		}},
+		{token.Token{
+			Type:    token.IDENT,
+			Literal: "func2",
+			Line:    16,
+			Col:     5,
+		}},
+		{token.Token{
+			Type:    token.LPAREN,
+			Literal: "(",
+			Line:    16,
+			Col:     10,
+		}},
+		{token.Token{
+			Type:    token.IDENT,
+			Literal: "arg",
+			Line:    16,
+			Col:     11,
+		}},
+		{token.Token{
+			Type:    token.RPAREN,
+			Literal: ")",
+			Line:    16,
+			Col:     14,
+		}},
+		{token.Token{
+			Type:    token.SEMICOLON,
+			Literal: ";",
+			Line:    16,
+			Col:     15,
+		}},
+		{token.Token{
+			Type:    token.RCURLY,
+			Literal: "}",
+			Line:    17,
+			Col:     2,
+		}},
+		{token.Token{
+			Type:    token.SEMICOLON,
+			Literal: ";",
+			Line:    17,
+			Col:     3,
+		}},
+		{token.Token{
+			Type:    token.EOF,
+			Literal: token.EOFSTRINGLITERAL,
+			Line:    18,
+			Col:     1,
 		}},
 	}
-
-	// fn(x, y){return x + y}
-	// pipeline mypipe {
-	// 	|func1
-	// 	|func2(arg)
-	// }
-	// `
 
 	for idx, tt := range tests {
 		tok := l.NextToken()

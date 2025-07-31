@@ -1,68 +1,84 @@
 package token
 
-type TokenType string
-
 type Token struct {
-	Literal string
-	Type    TokenType
-	Line    int
-	Col     int
+	Type     TokenType
+	Value    string
+	Position Position
 }
 
-func (t *Token) SetPosition(line int, col int) {
-	t.Line = line
-	t.Col = col
+func (t *Token) SetPosition(start int, end int) Position {
+	return Position{
+		start: start,
+		end:   end,
+	}
 }
+
+type Position struct {
+	start int // inclusive: [start:end)
+	end   int // exclusive: [start:end)
+}
+
+var NullPosition Position = Position{
+	start: -1,
+	end:   -1,
+}
+
+func (p *Position) GetPosition() (int, int) {
+	return p.start, p.end
+}
+
+type TokenType int
 
 const (
+	_ TokenType = iota
 
-	//identifiers and literals
-	IDENT  TokenType = "IDENT"
-	STRING TokenType = "STRING"
-	INT    TokenType = "INT"
-	FLOAT  TokenType = "FLOAT"
+	//identifiers and literal types
+	IDENT  // identifier; ex: myVar
+	STRING // "mystring"
+	INT
+	FLOAT
 
-	// operators
-	ASSIGN      TokenType = "="
-	PLUS        TokenType = "+"
-	MINUS       TokenType = "-"
-	EXCLAMATION TokenType = "!"
-	ASTERISK    TokenType = "*"
-	SLASH       TokenType = "/"
-	PIPE        TokenType = "|"
+	//operators
+	ASSIGN      // "="
+	PLUS        // "+"
+	MINUS       // "-"
+	ASTERISK    // "*"
+	SLASH       // "/"
+	EXCLAMATION // "!"
+	PIPECHAR    // "|"
 
-	// comparisons
-	EQ     TokenType = "=="
-	NOT_EQ TokenType = "!="
-	GT     TokenType = ">"
-	LT     TokenType = "<"
-	GTEQ   TokenType = ">="
-	LTEQ   TokenType = "<="
+	//comparisons
+	EQ     // "=="
+	NOT_EQ //"!="
+	GT     // >
+	LT     // <
+	GTEQ   //">="
+	LTEQ   // "<="
 
-	// delimiters
-	DOT       TokenType = "."
-	COMMA     TokenType = ","
-	SEMICOLON TokenType = ";"
-	LSQUARE   TokenType = "["
-	RSQUARE   TokenType = "]"
-	LCURLY    TokenType = "{"
-	RCURLY    TokenType = "}"
-	LPAREN    TokenType = "("
-	RPAREN    TokenType = ")"
+	//delimiters
+	DOT       // "."
+	COMMA     // ","
+	COLON     // ":"
+	SEMICOLON // ";"
+	LSQUARE   // "["
+	RSQUARE   // "]"
+	LCURLY    // "{"
+	RCURLY    // "}"
+	LPAREN    // "("
+	RPAREN    // ")"
 
 	//keywords
-	FUNCTION TokenType = "FUNCTION"
-	PIPELINE TokenType = "PIPELINE"
-	RETURN   TokenType = "RETURN"
+	PIPEDEF // "pipe"
 
-	// global var accessors
-	ENV  TokenType = "ENV"
-	SRC  TokenType = "SRC"
-	DEST TokenType = "DEST"
+	//mem accessors
+	ENV  // "$env"
+	VAR  // "$var"
+	SRC  // $src
+	DEST // $dest
 
-	//meta
-	ILLEGAL TokenType = "ILLEGAL"
-	EOF     TokenType = "EOF"
+	// meta
+	ILLEGAL // "ILLEGAL"
+	EOF     // "EOF"
 )
 
 func LookupKeyword(ident string) TokenType {
@@ -73,11 +89,9 @@ func LookupKeyword(ident string) TokenType {
 }
 
 var keywordTable = map[string]TokenType{
-	"fn":      FUNCTION,
-	"pipeine": PIPELINE,
-	"return":  RETURN,
-
+	"pipe":  PIPEDEF,
 	"$env":  ENV,
+	"$var":  VAR,
 	"$src":  SRC,
 	"$dest": DEST,
 }

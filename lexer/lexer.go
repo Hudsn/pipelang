@@ -14,9 +14,6 @@ type Lexer struct {
 
 	currentIdx int
 	nextIdx    int
-
-	lineNum int
-	colNum  int
 }
 
 func New(input []rune) *Lexer {
@@ -24,8 +21,6 @@ func New(input []rune) *Lexer {
 		input: input,
 	}
 	l.readNext()
-	l.lineNum = 1
-	l.colNum = 1
 	return l
 }
 
@@ -37,16 +32,22 @@ func (l *Lexer) NextToken() token.Token {
 	switch l.currentChar {
 	case rune(0):
 		tok = newToken(token.EOF, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
+	case ':':
+		tok = newToken(token.COLON, l.currentChar)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case '.':
 		tok = newToken(token.DOT, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case ',':
 		tok = newToken(token.COMMA, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
+	case '|':
+		tok = newToken(token.PIPECHAR, l.currentChar)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case '"':
 		tok = l.readString()
 		return tok
@@ -54,52 +55,60 @@ func (l *Lexer) NextToken() token.Token {
 		tok = l.readString()
 		return tok
 	case '=':
+		start := l.currentIdx
 		tok = l.handleEquals()
+		tok.SetPosition(start, l.nextIdx)
 	case '>':
+		start := l.currentIdx
 		tok = l.handleGT()
+		tok.SetPosition(start, l.nextIdx)
 	case '<':
+		start := l.currentIdx
 		tok = l.handleLT()
+		tok.SetPosition(start, l.nextIdx)
 	case '!':
+		start := l.currentIdx
 		tok = l.handleExclamation()
+		tok.SetPosition(start, l.nextIdx)
 	case '+':
 		tok = newToken(token.PLUS, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case '*':
 		tok = newToken(token.ASTERISK, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case '/':
 		tok = newToken(token.SLASH, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case '-':
 		tok = newToken(token.MINUS, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case '$':
 		tok = l.readIdentifier()
 		return tok
 	case '(':
 		tok = newToken(token.LPAREN, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case ')':
 		tok = newToken(token.RPAREN, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 		l.readNext()
 		l.maybeAddSemicolon()
 		return tok
 	case '[':
 		tok = newToken(token.LSQUARE, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case ']':
 		tok = newToken(token.RSQUARE, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 		l.readNext()
 		l.maybeAddSemicolon()
 		return tok
 	case '{':
 		tok = newToken(token.LCURLY, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case '}':
 		tok = newToken(token.RCURLY, l.currentChar)
-		tok.SetPosition(l.lineNum, l.colNum)
+		tok.SetPosition(l.currentIdx, l.nextIdx)
 		l.readNext()
 		l.maybeAddSemicolon()
 		return tok
@@ -113,7 +122,7 @@ func (l *Lexer) NextToken() token.Token {
 			return tok
 		} else {
 			tok = newToken(token.ILLEGAL, l.currentChar)
-			tok.SetPosition(l.lineNum, l.colNum)
+			tok.SetPosition(l.currentIdx, l.nextIdx)
 		}
 	}
 
@@ -123,14 +132,6 @@ func (l *Lexer) NextToken() token.Token {
 }
 
 func (l *Lexer) readNext() {
-	if l.currentChar == '\n' {
-		// any newline should reset col to 1 and increment the line count
-		l.colNum = 1
-		l.lineNum += 1
-	} else {
-		// otherwise we just prog the char count of the current line
-		l.colNum += 1
-	}
 	if l.nextIdx >= len(l.input) {
 		l.currentChar = rune(0)
 	} else {
@@ -148,14 +149,13 @@ func (l *Lexer) peekNext() rune {
 }
 
 func newToken(tokenType token.TokenType, char rune) token.Token {
-	return token.Token{Type: tokenType, Literal: string(char)}
+	return token.Token{Type: tokenType, Value: string(char)}
 }
 
 // multi-char reader helpers
 
 func (l *Lexer) readNumber() token.Token {
 	tok := &token.Token{Type: token.INT}
-	tok.SetPosition(l.lineNum, l.colNum)
 	startIdx := l.currentIdx
 	encounteredDot := false
 	for isDigit(l.currentChar) || l.currentChar == '.' {
@@ -168,8 +168,14 @@ func (l *Lexer) readNumber() token.Token {
 		}
 		l.readNext()
 	}
-	literal := string(l.input[startIdx:l.currentIdx])
-	tok.Literal = literal
+	tok.SetPosition(startIdx, l.currentIdx)
+	tok.Value = string(l.input[startIdx:l.currentIdx])
+
+	// something like 123abc should be illegal.
+	if isLetter(l.currentChar) {
+		tok.Type = token.ILLEGAL
+		return *tok
+	}
 
 	l.maybeAddSemicolon()
 	return *tok
@@ -177,20 +183,20 @@ func (l *Lexer) readNumber() token.Token {
 
 func (l *Lexer) readIdentifier() token.Token {
 	tok := &token.Token{}
-	tok.SetPosition(l.lineNum, l.colNum)
-	start := l.currentIdx
+	startIdx := l.currentIdx
 	if l.currentChar == '$' {
 		l.readNext()
 	}
-	for isLetter(l.currentChar) || isRecognizedLineChar(l.currentChar) {
+	for isLetter(l.currentChar) || isRecognizedLineChar(l.currentChar) || isDigit(l.currentChar) {
 		l.readNext()
 	}
 
-	tok.Literal = string(l.input[start:l.currentIdx])
-	tok.Type = token.LookupKeyword(tok.Literal)
+	tok.SetPosition(startIdx, l.currentIdx)
+	tok.Value = string(l.input[startIdx:l.currentIdx])
+	tok.Type = token.LookupKeyword(tok.Value)
 
 	// if we don't find any $keywords, we return an illegal token since the only valid $ words should be predefined
-	if tok.Type == token.IDENT && strings.HasPrefix(tok.Literal, "$") {
+	if tok.Type == token.IDENT && strings.HasPrefix(tok.Value, "$") {
 		tok.Type = token.ILLEGAL
 	}
 
@@ -200,15 +206,15 @@ func (l *Lexer) readIdentifier() token.Token {
 
 func (l *Lexer) readString() token.Token {
 	tok := &token.Token{Type: token.STRING}
-	tok.SetPosition(l.lineNum, l.colNum)
 	endChar := l.currentChar
+	startIdx := l.currentIdx
 	l.readNext()
-	start := l.currentIdx
 	for l.currentChar != endChar && l.currentChar != rune(0) {
 		l.readNext()
 	}
-	tok.Literal = string(l.input[start:l.currentIdx])
-	l.readNext() // go from end quote to next char
+	tok.SetPosition(startIdx, l.nextIdx)                   // want to capture quotes and contents.
+	tok.Value = string(l.input[startIdx+1 : l.currentIdx]) // want to capture only inside quotes here
+	l.readNext()                                           // go from end quote to next char
 	l.maybeAddSemicolon()
 	return *tok
 }
@@ -221,32 +227,38 @@ func (l *Lexer) handleWhitespace() {
 
 // Other helpers
 
+// returns the target index unless it is out of bounds. Then it just returns a safe max idx (length of input)
+func (l *Lexer) safeIdx(idx int) int {
+	if idx >= len(l.input) {
+		return len(l.input)
+	}
+	return idx
+}
+
 func (l *Lexer) handleEquals() token.Token {
 	tok := &token.Token{
-		Type:    token.ASSIGN,
-		Literal: string(l.currentChar),
+		Type:  token.ASSIGN,
+		Value: string(l.currentChar),
 	}
-	tok.SetPosition(l.lineNum, l.colNum)
 	if l.peekNext() == '=' {
 		start := l.currentIdx
 		l.readNext()
 		tok.Type = token.EQ
-		tok.Literal = string(l.input[start:l.nextIdx])
+		tok.Value = string(l.input[start:l.nextIdx])
 		return *tok
 	}
 	return *tok
 }
 func (l *Lexer) handleExclamation() token.Token {
 	tok := &token.Token{
-		Type:    token.EXCLAMATION,
-		Literal: string(l.currentChar),
+		Type:  token.EXCLAMATION,
+		Value: string(l.currentChar),
 	}
-	tok.SetPosition(l.lineNum, l.colNum)
 	if l.peekNext() == '=' {
 		start := l.currentIdx
 		l.readNext()
 		tok.Type = token.NOT_EQ
-		tok.Literal = string(l.input[start:l.nextIdx])
+		tok.Value = string(l.input[start:l.nextIdx])
 		return *tok
 	}
 	return *tok
@@ -254,30 +266,28 @@ func (l *Lexer) handleExclamation() token.Token {
 
 func (l *Lexer) handleGT() token.Token {
 	tok := &token.Token{
-		Type:    token.GT,
-		Literal: string(l.currentChar),
+		Type:  token.GT,
+		Value: string(l.currentChar),
 	}
-	tok.SetPosition(l.lineNum, l.colNum)
 	if l.peekNext() == '=' {
 		start := l.currentIdx
 		l.readNext()
 		tok.Type = token.GTEQ
-		tok.Literal = string(l.input[start:l.nextIdx])
+		tok.Value = string(l.input[start:l.nextIdx])
 		return *tok
 	}
 	return *tok
 }
 func (l *Lexer) handleLT() token.Token {
 	tok := &token.Token{
-		Type:    token.LT,
-		Literal: string(l.currentChar),
+		Type:  token.LT,
+		Value: string(l.currentChar),
 	}
-	tok.SetPosition(l.lineNum, l.colNum)
 	if l.peekNext() == '=' {
 		start := l.currentIdx
 		l.readNext()
 		tok.Type = token.LTEQ
-		tok.Literal = string(l.input[start:l.nextIdx])
+		tok.Value = string(l.input[start:l.nextIdx])
 		return *tok
 	}
 	return *tok
