@@ -27,6 +27,11 @@ func (p *Position) GetPosition() (int, int) {
 	return p.start, p.end
 }
 
+func (p *Position) SetPosition(start int, end int) {
+	p.start = start
+	p.end = end
+}
+
 type TokenType int
 
 const (
