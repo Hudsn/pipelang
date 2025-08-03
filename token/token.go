@@ -34,6 +34,13 @@ func (p *Position) SetPosition(start int, end int) {
 
 type TokenType int
 
+func (t TokenType) HumanString() string {
+	if ret, found := stringTable[t]; found {
+		return ret
+	}
+	return "ILLEGAL"
+}
+
 const (
 	_ TokenType = iota
 
@@ -106,3 +113,5 @@ var keywordTable = map[string]TokenType{
 	"else":  ELSE,
 	"null":  NULL,
 }
+
+var stringTable = map[TokenType]string{}

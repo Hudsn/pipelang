@@ -16,6 +16,10 @@ type Lexer struct {
 	nextIdx    int
 }
 
+func (l *Lexer) InputRunes() []rune {
+	return l.input
+}
+
 func New(input []rune) *Lexer {
 	l := &Lexer{
 		input: input,
