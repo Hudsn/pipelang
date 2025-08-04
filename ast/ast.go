@@ -77,7 +77,7 @@ type BlockStatement struct {
 	Statements []Statement
 }
 
-func (bs *BlockStatement) statementNode()
+func (bs *BlockStatement) statementNode() {}
 func (bs *BlockStatement) Position() token.Position {
 	first, _ := bs.OpenToken.Position.GetPosition()
 	_, last := bs.CloseToken.Position.GetPosition()
