@@ -13,9 +13,10 @@ func (t *Token) SetPosition(start int, end int) {
 	}
 }
 
+// [start:end)
 type Position struct {
-	start int // inclusive: [start:end)
-	end   int // exclusive: [start:end)
+	start int
+	end   int
 }
 
 var NullPosition Position = Position{
@@ -84,6 +85,8 @@ const (
 	IF
 	ELSE
 	NULL
+	TRUE
+	FALSE
 
 	//mem accessors
 	ENV  // "$env"
@@ -112,6 +115,8 @@ var keywordTable = map[string]TokenType{
 	"if":    IF,
 	"else":  ELSE,
 	"null":  NULL,
+	"true":  TRUE,
+	"false": FALSE,
 }
 
 var stringTable = map[TokenType]string{
@@ -145,6 +150,8 @@ var stringTable = map[TokenType]string{
 	PIPEDEF:     `pipe definition ("pipe")`,
 	IF:          `if statement ("if")`,
 	ELSE:        `else statement ("else")`,
+	TRUE:        "true",
+	FALSE:       "false",
 	NULL:        "null token",
 	ENV:         "$env",
 	VAR:         "$var",
