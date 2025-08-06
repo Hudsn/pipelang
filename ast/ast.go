@@ -98,6 +98,16 @@ func (il *IntegerLiteral) Position() token.Position {
 	return il.Token.Position
 }
 
+type Identifier struct {
+	Token token.Token
+	Value string
+}
+
+func (ie *Identifier) expressionNode() {}
+func (ie *Identifier) Position() token.Position {
+	return ie.Token.Position
+}
+
 //
 // helpers
 //

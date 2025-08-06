@@ -66,6 +66,7 @@ func New(l *lexer.Lexer) *Parser {
 
 func (p *Parser) registerFuncs() {
 	p.registerPrefixFunc(token.INT, p.parseIntegerLiteral)
+	p.registerPrefixFunc(token.IDENT, p.parseIdentifier)
 }
 
 func (p *Parser) progressTokens() {
@@ -125,7 +126,7 @@ func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 	var err error
 	prefixFn := p.prefixFunctions[p.currentToken.Type]
 	if prefixFn == nil {
-		err := fmt.Errorf("prefix function not found for token type %s", p.currentToken.Type.HumanString())
+		err := fmt.Errorf("prefix function not found for token type %q", p.currentToken.Type.HumanString())
 		return nil, newParsingError(err, p.lexer.InputRunes(), p.currentToken)
 	}
 
@@ -157,6 +158,10 @@ func (p *Parser) parseIntegerLiteral() (ast.Expression, error) {
 	}
 	ret.Value = int(val)
 	return ret, nil
+}
+
+func (p *Parser) parseIdentifier() (ast.Expression, error) {
+	return &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Value}, nil
 }
 
 func (p *Parser) registerPrefixFunc(tokenType token.TokenType, fn prefixFunc) {
