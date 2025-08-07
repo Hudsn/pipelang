@@ -66,6 +66,8 @@ func New(l *lexer.Lexer) *Parser {
 
 func (p *Parser) registerFuncs() {
 	p.registerPrefixFunc(token.INT, p.parseIntegerLiteral)
+	p.registerPrefixFunc(token.TRUE, p.parseBoolean)
+	p.registerPrefixFunc(token.FALSE, p.parseBoolean)
 	p.registerPrefixFunc(token.IDENT, p.parseIdentifier)
 }
 
@@ -98,8 +100,7 @@ func (p *Parser) parseStatement() (ast.Statement, error) {
 		// handle pipe invocation
 		return nil, nil
 	case token.IF:
-		// handle if statement
-		return nil, nil
+		return p.parseIfStatement()
 	default:
 		// handle rest of expressions
 		return p.parseExpressionStatement()
@@ -126,7 +127,7 @@ func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 	var err error
 	prefixFn := p.prefixFunctions[p.currentToken.Type]
 	if prefixFn == nil {
-		err := fmt.Errorf("prefix function not found for token type %q", p.currentToken.Type.HumanString())
+		err := fmt.Errorf("prefix function not found for token type: %s", p.currentToken.Type.HumanString())
 		return nil, newParsingError(err, p.lexer.InputRunes(), p.currentToken)
 	}
 
@@ -164,14 +165,102 @@ func (p *Parser) parseIdentifier() (ast.Expression, error) {
 	return &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Value}, nil
 }
 
+func (p *Parser) parseBoolean() (ast.Expression, error) {
+	var val bool
+	switch p.currentToken.Value {
+	case "true":
+		val = true
+	case "false":
+		val = false
+	default:
+		err := fmt.Errorf("failed to parse %q as a boolean", p.currentToken.Value)
+		return nil, newParsingError(err, p.lexer.InputRunes(), p.currentToken)
+	}
+	return &ast.Boolean{Token: p.currentToken, Value: val}, nil
+}
+
+func (p *Parser) parseIfStatement() (ast.Statement, error) {
+	ret := &ast.IfStatement{Token: p.currentToken}
+
+	p.progressTokens()
+	condition, err := p.parseExpression(LOWEST)
+	if err != nil {
+		return nil, err
+	}
+	ret.Condition = condition
+
+	if err := p.mustNextToken(token.LCURLY); err != nil {
+		return nil, err
+	}
+
+	consequence, err := p.parseBlockStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	ret.Consequence = consequence
+
+	if p.isPeekToken(token.ELSE) {
+		p.progressTokens()
+		p.progressTokens()
+
+		switch p.currentToken.Type {
+		case token.IF:
+			alt, err := p.parseIfStatement()
+			if err != nil {
+				return nil, err
+			}
+			ret.Alternative = alt
+		case token.LCURLY:
+			alt, err := p.parseBlockStatement()
+			if err != nil {
+				return nil, err
+			}
+			ret.Alternative = alt
+		default:
+			err := fmt.Errorf("unexpected token type. wanted %s or %s. got %s", token.IF.HumanString(), token.ELSE.HumanString(), p.currentToken.Type.HumanString())
+			return nil, newParsingError(err, p.lexer.InputRunes(), p.currentToken)
+		}
+	}
+
+	if p.isPeekToken(token.SEMICOLON) {
+		p.progressTokens()
+	}
+	return ret, nil
+}
+
+func (p *Parser) parseBlockStatement() (*ast.BlockStatement, error) {
+	ret := &ast.BlockStatement{OpenToken: p.currentToken}
+	ret.Statements = []ast.Statement{}
+	p.progressTokens()
+	for !p.isCurrentToken(token.RCURLY) && !p.isCurrentToken(token.EOF) {
+		statement, err := p.parseStatement()
+		if err != nil {
+			return nil, err
+		}
+		if statement != nil {
+			ret.Statements = append(ret.Statements, statement)
+		}
+		p.progressTokens()
+	}
+	if p.isCurrentToken(token.EOF) {
+		e := fmt.Errorf("unexpected end-of-file (EOF)")
+		return nil, newParsingError(e, p.lexer.InputRunes(), p.currentToken)
+	}
+	if p.isCurrentToken(token.RCURLY) {
+		ret.CloseToken = p.currentToken
+	}
+	return ret, nil
+}
+
+//HELPERS
+
 func (p *Parser) registerPrefixFunc(tokenType token.TokenType, fn prefixFunc) {
 	p.prefixFunctions[tokenType] = fn
 }
 func (p *Parser) registerInfixFunc(tokenType token.TokenType, fn infixFunc) {
 	p.infixFunctions[tokenType] = fn
 }
-
-//HELPERS
 
 func (p *Parser) peekPrecedence() int {
 	if precedence, ok := precedenceMap[p.peekToken.Type]; ok {
@@ -193,7 +282,7 @@ func (p *Parser) mustNextToken(tokenType token.TokenType) error {
 		p.progressTokens()
 		return nil
 	}
-	err := fmt.Errorf("expected next token to be %s. instead got %s", tokenType.HumanString(), p.peekToken.Type.HumanString())
+	err := errUnexpectedTokenType(tokenType, p.peekToken.Type)
 	return newParsingError(err, p.lexer.InputRunes(), p.currentToken)
 }
 
@@ -214,6 +303,10 @@ func getLineAndColumn(inputRunes []rune, targetIdx int) (int, int) {
 }
 
 // error
+
+func errUnexpectedTokenType(want, got token.TokenType) error {
+	return fmt.Errorf("expected next token to be %s. instead got %s", want.HumanString(), got.HumanString())
+}
 
 func newParsingError(innerErr error, inputRunes []rune, token token.Token) error {
 	start, _ := token.Position.GetPosition()

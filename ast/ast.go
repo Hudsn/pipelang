@@ -18,6 +18,11 @@ type Expression interface {
 	expressionNode()
 }
 
+type ExpressionDebugger interface {
+	Expression
+	String() string
+}
+
 //
 // top-level program
 //
@@ -97,15 +102,32 @@ func (il *IntegerLiteral) expressionNode() {}
 func (il *IntegerLiteral) Position() token.Position {
 	return il.Token.Position
 }
+func (il *IntegerLiteral) String() string { return il.Token.Value }
 
 type Identifier struct {
 	Token token.Token
 	Value string
 }
 
-func (ie *Identifier) expressionNode() {}
-func (ie *Identifier) Position() token.Position {
-	return ie.Token.Position
+func (i *Identifier) expressionNode() {}
+func (i *Identifier) Position() token.Position {
+	return i.Token.Position
+}
+func (i *Identifier) String() string {
+	return i.Token.Value
+}
+
+type Boolean struct {
+	Token token.Token
+	Value bool
+}
+
+func (b *Boolean) expressionNode() {}
+func (b *Boolean) Position() token.Position {
+	return b.Token.Position
+}
+func (b *Boolean) String() string {
+	return b.Token.Value
 }
 
 //
