@@ -44,7 +44,10 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.COLON, l.currentChar)
 		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case '.':
-		tok = newToken(token.DOT, l.currentChar)
+		tok = l.handleDot()
+		if tok.Type == token.FLOAT {
+			return tok
+		}
 		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case ',':
 		tok = newToken(token.COMMA, l.currentChar)
@@ -237,6 +240,17 @@ func (l *Lexer) safeIdx(idx int) int {
 		return len(l.input)
 	}
 	return idx
+}
+
+func (l *Lexer) handleDot() token.Token {
+	tok := &token.Token{
+		Type:  token.DOT,
+		Value: string(l.currentChar),
+	}
+	if isDigit(l.peekNext()) {
+		return l.readNumber()
+	}
+	return *tok
 }
 
 func (l *Lexer) handleEquals() token.Token {

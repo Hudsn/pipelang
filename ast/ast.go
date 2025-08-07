@@ -106,6 +106,19 @@ func (il *IntegerLiteral) Position() token.Position {
 }
 func (il *IntegerLiteral) String() string { return il.Token.Value }
 
+type FloatLiteral struct {
+	Token token.Token
+	Value float64
+}
+
+func (f *FloatLiteral) expressionNode() {}
+func (f *FloatLiteral) Position() token.Position {
+	return f.Token.Position
+}
+func (f *FloatLiteral) String() string {
+	return f.Token.Value
+}
+
 type Identifier struct {
 	Token token.Token
 	Value string
