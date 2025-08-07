@@ -69,6 +69,7 @@ func (p *Parser) registerFuncs() {
 	p.registerPrefixFunc(token.TRUE, p.parseBoolean)
 	p.registerPrefixFunc(token.FALSE, p.parseBoolean)
 	p.registerPrefixFunc(token.IDENT, p.parseIdentifier)
+	p.registerPrefixFunc(token.STRING, p.parseString)
 }
 
 func (p *Parser) progressTokens() {
@@ -177,6 +178,10 @@ func (p *Parser) parseBoolean() (ast.Expression, error) {
 		return nil, newParsingError(err, p.lexer.InputRunes(), p.currentToken)
 	}
 	return &ast.Boolean{Token: p.currentToken, Value: val}, nil
+}
+
+func (p *Parser) parseString() (ast.Expression, error) {
+	return &ast.StringLiteral{Token: p.currentToken, Value: p.currentToken.Value}, nil
 }
 
 func (p *Parser) parseIfStatement() (ast.Statement, error) {

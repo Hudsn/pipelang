@@ -8,6 +8,41 @@ import (
 	"github.com/hudsn/pipelang/utils/testutils"
 )
 
+func TestStringLiteral(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{`"mystring"`, "mystring"},
+		{"'mystring'", "mystring"},
+	}
+
+	for _, tt := range tests {
+		program := setupTestWithInput(t, tt.input)
+		if len(program.Statements) != 1 {
+			t.Fatalf("expected len of parsed program to be 1. got=%d", len(program.Statements))
+		}
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("program.Statements[0] is not *ast.ExpressionStatement. got=%T", program.Statements[0])
+		}
+		testStringExpression(t, stmt.Expression, tt.want)
+	}
+}
+
+func testStringExpression(t *testing.T, stringExpression ast.Expression, want string) bool {
+	str, ok := stringExpression.(*ast.StringLiteral)
+	if !ok {
+		t.Fatalf("stmt.Expression is not *ast.StringLiteral. got=%T", stringExpression)
+		return false
+	}
+	if isEq, failMsg := testutils.Equal(want, str.Value); !isEq {
+		t.Errorf("wrong string value: %s", failMsg)
+		return false
+	}
+	return true
+}
+
 func TestIfStatement(t *testing.T) {
 
 	input := `if true {
@@ -179,9 +214,12 @@ func testExpression(t *testing.T, expression ast.Expression, value any) bool {
 		return testIntegerLiteral(t, expression, int(v))
 	case bool:
 		return testBooleanLiteral(t, expression, v)
+	case string:
+		return testStringExpression(t, expression, v)
+	default:
+		t.Errorf("type of exp not handled. got=%T", expression)
+		return false
 	}
-	t.Errorf("type of exp not handled. got=%T", expression)
-	return false
 }
 
 func setupTestWithInput(t *testing.T, input string) *ast.Program {

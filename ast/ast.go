@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"fmt"
+
 	"github.com/hudsn/pipelang/token"
 )
 
@@ -128,6 +130,19 @@ func (b *Boolean) Position() token.Position {
 }
 func (b *Boolean) String() string {
 	return b.Token.Value
+}
+
+type StringLiteral struct {
+	Token token.Token
+	Value string
+}
+
+func (s *StringLiteral) expressionNode() {}
+func (s *StringLiteral) Position() token.Position {
+	return s.Token.Position
+}
+func (s *StringLiteral) String() string {
+	return fmt.Sprintf(`"%s"`, s.Value)
 }
 
 //
