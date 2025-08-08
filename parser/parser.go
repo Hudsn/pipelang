@@ -98,10 +98,10 @@ func (p *Parser) registerFuncs() {
 	p.registerInfixFunc(token.LTEQ, p.parseInfixExpression)
 	p.registerInfixFunc(token.GT, p.parseInfixExpression)
 	p.registerInfixFunc(token.GTEQ, p.parseInfixExpression)
+	p.registerInfixFunc(token.ARROW, p.parseArrowFunctionExpression)
+	p.registerInfixFunc(token.LPAREN, p.parseCallExpression)
 	// TODO
-	// p.registerInfixFunc(token.ARROW, p.parseArrowExpression)
 	// p.registerInfixFunc(token.DOT, p.parseDotAccessExpression)
-	// p.registerInfixFunc(token.LPAREN, p.parseFunctionCallExpression)
 	// p.registerInfixFunc(token.LSQUARE, p.parseIndexExpression)
 
 }
@@ -169,7 +169,6 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 		p.progressTokens()
 		leftExpression = infixFn(leftExpression)
 	}
-
 	return leftExpression
 }
 
@@ -264,6 +263,64 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 		return nil
 	}
 	return exp
+}
+
+func (p *Parser) parseCallExpression(left ast.Expression) ast.Expression {
+	ret := &ast.CallExpression{Token: p.currentToken}
+	ident, ok := left.(*ast.Identifier)
+	if !ok {
+		p.errUnexpectedToken(left.GetToken())
+		return nil
+	}
+	ret.Name = ident
+
+	ret.Arguments = p.parseExpressionList(token.RPAREN)
+	return ret
+}
+
+func (p *Parser) parseExpressionList(endType token.TokenType) []ast.Expression {
+	// enter function still on opening character
+	// for example we are still on the '(' in: (arg1, arg2, arg3)
+
+	// end early if empty enclosure chars like ()
+	// make sure to end on closing char
+	if p.isPeekToken(endType) {
+		p.progressTokens()
+		return []ast.Expression{}
+	}
+
+	p.progressTokens() // now on first substantive expr entry
+
+	ret := []ast.Expression{p.parseExpression(LOWEST)}
+
+	for p.isPeekToken(token.COMMA) {
+		p.progressTokens() // now at comma
+		p.progressTokens() // skip comma to next entry
+		ret = append(ret, p.parseExpression(LOWEST))
+	}
+
+	if !p.mustNextToken(endType) {
+		return nil
+	}
+
+	return ret
+}
+
+func (p *Parser) parseArrowFunctionExpression(left ast.Expression) ast.Expression {
+	ret := &ast.ArrowFunctionExpression{Token: p.currentToken}
+
+	ident, ok := left.(*ast.Identifier)
+	if !ok {
+		p.errUnexpectedToken(left.GetToken())
+		return nil
+	}
+	ret.Param = ident
+
+	p.progressTokens()
+
+	ret.QueryExpression = p.parseExpression(LOWEST)
+
+	return ret
 }
 
 func (p *Parser) parseIfExpression() ast.Expression {
@@ -372,7 +429,7 @@ func (p *Parser) mustNextToken(tokenType token.TokenType) bool {
 		p.progressTokens()
 		return true
 	}
-	p.errUnexpected()
+	p.errUnexpectedToken(p.peekToken)
 	return false
 }
 
@@ -403,6 +460,18 @@ func (p *Parser) errUnexpected() {
 	}
 	e := fmt.Errorf("unexpected sequence: %s", str)
 	p.errors = append(p.errors, newParsingError(e, p.lexer.InputRunes(), p.currentToken))
+}
+
+// same as errUnexpected, but for a specific token in our lexed output.
+// useful for flagging tokens we've alredy progressed past, like in left sides of infix expressions
+func (p *Parser) errUnexpectedToken(t token.Token) {
+	start, end := t.Position.GetPosition()
+	str := string(p.lexer.InputRunes()[start:end])
+	if t.Type == token.EOF {
+		str = "EOF"
+	}
+	e := fmt.Errorf("unexpected sequence: %s", str)
+	p.errors = append(p.errors, newParsingError(e, p.lexer.InputRunes(), t))
 }
 
 func newParsingError(innerErr error, inputRunes []rune, token token.Token) error {

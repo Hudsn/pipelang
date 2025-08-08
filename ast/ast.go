@@ -22,11 +22,13 @@ type Node interface {
 
 type Statement interface {
 	Node
+	GetToken() token.Token
 	statementNode()
 }
 
 type Expression interface {
 	Node
+	GetToken() token.Token
 	expressionNode()
 }
 
@@ -65,6 +67,9 @@ type ExpressionStatement struct {
 }
 
 func (es *ExpressionStatement) statementNode() {}
+func (es *ExpressionStatement) GetToken() token.Token {
+	return es.Token
+}
 func (es *ExpressionStatement) Position() token.Position {
 	first, _ := es.Token.Position.GetPosition()
 	_, last := getNodePositions(es.Expression)
@@ -86,6 +91,9 @@ type BlockStatement struct {
 }
 
 func (bs *BlockStatement) statementNode() {}
+func (bs *BlockStatement) GetToken() token.Token {
+	return bs.OpenToken
+}
 func (bs *BlockStatement) Position() token.Position {
 	first, _ := bs.OpenToken.Position.GetPosition()
 	_, last := bs.CloseToken.Position.GetPosition()
@@ -107,6 +115,9 @@ type AssignStatement struct {
 }
 
 func (as *AssignStatement) statementNode() {}
+func (as *AssignStatement) GetToken() token.Token {
+	return as.Token
+}
 func (as *AssignStatement) Position() token.Position {
 	startPos := as.Name.Position()
 	start, _ := startPos.GetPosition()
@@ -130,10 +141,15 @@ type IntegerLiteral struct {
 }
 
 func (il *IntegerLiteral) expressionNode() {}
+func (il *IntegerLiteral) GetToken() token.Token {
+	return il.Token
+}
 func (il *IntegerLiteral) Position() token.Position {
 	return il.Token.Position
 }
 func (il *IntegerLiteral) String() string { return il.Token.Value }
+
+//
 
 type FloatLiteral struct {
 	Token token.Token
@@ -141,6 +157,9 @@ type FloatLiteral struct {
 }
 
 func (f *FloatLiteral) expressionNode() {}
+func (f *FloatLiteral) GetToken() token.Token {
+	return f.Token
+}
 func (f *FloatLiteral) Position() token.Position {
 	return f.Token.Position
 }
@@ -148,12 +167,17 @@ func (f *FloatLiteral) String() string {
 	return f.Token.Value
 }
 
+//
+
 type Identifier struct {
 	Token token.Token
 	Value string
 }
 
 func (i *Identifier) expressionNode() {}
+func (i *Identifier) GetToken() token.Token {
+	return i.Token
+}
 func (i *Identifier) Position() token.Position {
 	return i.Token.Position
 }
@@ -161,12 +185,17 @@ func (i *Identifier) String() string {
 	return i.Token.Value
 }
 
+//
+
 type Boolean struct {
 	Token token.Token
 	Value bool
 }
 
 func (b *Boolean) expressionNode() {}
+func (b *Boolean) GetToken() token.Token {
+	return b.Token
+}
 func (b *Boolean) Position() token.Position {
 	return b.Token.Position
 }
@@ -174,12 +203,15 @@ func (b *Boolean) String() string {
 	return b.Token.Value
 }
 
+//
+
 type StringLiteral struct {
 	Token token.Token
 	Value string
 }
 
-func (s *StringLiteral) expressionNode() {}
+func (s *StringLiteral) expressionNode()       {}
+func (s *StringLiteral) GetToken() token.Token { return s.Token }
 func (s *StringLiteral) Position() token.Position {
 	return s.Token.Position
 }
@@ -187,37 +219,56 @@ func (s *StringLiteral) String() string {
 	return fmt.Sprintf(`"%s"`, s.Value)
 }
 
+//
+
 type ArrowFunctionExpression struct {
 	Token           token.Token
-	Params          []Identifier
+	Param           *Identifier
 	QueryExpression Expression
-	start           int
 }
 
-func (f *ArrowFunctionExpression) expressionNode() {}
+func (f *ArrowFunctionExpression) expressionNode()       {}
+func (f *ArrowFunctionExpression) GetToken() token.Token { return f.Token }
 func (f *ArrowFunctionExpression) Position() token.Position {
+	sPos := f.Param.Position()
+	start, _ := sPos.GetPosition()
 	bpos := f.QueryExpression.Position()
 	_, end := bpos.GetPosition()
 	pos := &token.Position{}
-	pos.SetPosition(f.start, end)
+	pos.SetPosition(start, end)
 	return *pos
 }
 func (f *ArrowFunctionExpression) String() string {
-	params := ""
-	switch len(f.Params) {
-	case 0:
-		return ""
-	case 1:
-		params = f.Params[0].String()
-	default:
-		paramList := []string{}
-		for _, p := range f.Params {
-			paramList = append(paramList, p.String())
-		}
-		params = fmt.Sprintf("( %s )", strings.Join(paramList, ", "))
-	}
-	return fmt.Sprintf("%s -> %s", params, f.QueryExpression.String())
+	return fmt.Sprintf("%s -> %s", f.Param.String(), f.QueryExpression.String())
 }
+
+//
+
+type CallExpression struct {
+	Token     token.Token
+	Name      *Identifier
+	Arguments []Expression
+	endPos    int
+}
+
+func (ce *CallExpression) expressionNode()       {}
+func (ce *CallExpression) GetToken() token.Token { return ce.Token }
+func (ce *CallExpression) Position() token.Position {
+	namePos := ce.Name.Position()
+	start, _ := namePos.GetPosition()
+	pos := &token.Position{}
+	pos.SetPosition(start, ce.endPos)
+	return *pos
+}
+func (ce *CallExpression) String() string {
+	argStrings := []string{}
+	for _, a := range ce.Arguments {
+		argStrings = append(argStrings, a.String())
+	}
+	return fmt.Sprintf("%s(%s)", ce.Name.String(), strings.Join(argStrings, ", "))
+}
+
+//
 
 type IfExpression struct {
 	Token       token.Token
@@ -227,6 +278,9 @@ type IfExpression struct {
 }
 
 func (i *IfExpression) expressionNode() {}
+func (i *IfExpression) GetToken() token.Token {
+	return i.Token
+}
 func (i *IfExpression) Position() token.Position {
 	first, _ := i.Token.Position.GetPosition()
 	var last int
@@ -249,6 +303,8 @@ func (i *IfExpression) String() string {
 	return ret
 }
 
+//
+
 type PrefixExpression struct {
 	Token    token.Token
 	Operator string
@@ -256,6 +312,9 @@ type PrefixExpression struct {
 }
 
 func (pe *PrefixExpression) expressionNode() {}
+func (pe *PrefixExpression) GetToken() token.Token {
+	return pe.Token
+}
 func (pe *PrefixExpression) Position() token.Position {
 	start, _ := pe.Token.Position.GetPosition()
 	rightPos := pe.Right.Position()
@@ -268,6 +327,8 @@ func (pe *PrefixExpression) String() string {
 	return fmt.Sprintf("(%s%s)", pe.Operator, pe.Right.String())
 }
 
+//
+
 type InfixExpression struct {
 	Token    token.Token
 	Left     Expression
@@ -275,7 +336,8 @@ type InfixExpression struct {
 	Right    Expression
 }
 
-func (ie *InfixExpression) expressionNode() {}
+func (ie *InfixExpression) expressionNode()       {}
+func (ie *InfixExpression) GetToken() token.Token { return ie.Token }
 func (ie *InfixExpression) Position() token.Position {
 	leftPos := ie.Left.Position()
 	rightPos := ie.Right.Position()

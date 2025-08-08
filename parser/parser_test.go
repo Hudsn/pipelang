@@ -8,12 +8,38 @@ import (
 	"github.com/hudsn/pipelang/utils/testutils"
 )
 
-func TestArrowFunctionExpression(t *testing.T) {
-
-}
-
 func TestFunctionCallExpression(t *testing.T) {
+	input := "myFunc(a, b, c)"
+	program := setupTestWithInput(t, input)
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected len of parsed program to be 1. got=%d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	call, ok := stmt.Expression.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not *ast.CallExpression. got=%T", stmt.Expression)
+	}
 
+	testLiteralExpression(t, call.Name, "myFunc")
+
+	argTests := []string{
+		"a", "b", "c",
+	}
+
+	if len(call.Arguments) != 3 {
+		t.Fatalf("expected len of call.Arguments to be 3. got=%d", len(call.Arguments))
+	}
+
+	for idx, arg := range call.Arguments {
+		testLiteralExpression(t, arg, argTests[idx])
+	}
+
+	if isEq, failMsg := testutils.Equal("(", call.Token.Value); !isEq {
+		t.Errorf("wrong token value for CallExpression: %s", failMsg)
+	}
 }
 
 func TestPrefixExpression(t *testing.T) {
@@ -24,7 +50,7 @@ func TestInfixExpression(t *testing.T) {
 
 }
 
-func TestPipedefStatement(t *testing.T) {
+func TestPipeDefStatement(t *testing.T) {
 
 }
 
@@ -37,6 +63,27 @@ func TestDotAccessExpression(t *testing.T) {
 }
 
 // TODO LINE -- move items below line after finished
+
+func TestArrowFunctionExpression(t *testing.T) {
+	input := "a ~> c || d"
+	program := setupTestWithInput(t, input)
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected len of parsed program to be 1. got=%d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	arrow, ok := stmt.Expression.(*ast.ArrowFunctionExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not *ast.ArrowFunctionExpression. got=%T", stmt.Expression)
+	}
+	testIdentifier(t, arrow.Param, "a")
+	if isEq, failMsg := testutils.Equal("~>", arrow.Token.Value); !isEq {
+		t.Fatalf("arrow token is incorrect: %s", failMsg)
+	}
+	testInfixExpression(t, arrow.QueryExpression, "c", "||", "d")
+}
 
 func TestAssignStatement(t *testing.T) {
 	input := "a = 2"
@@ -388,7 +435,15 @@ func testLiteralExpression(t *testing.T, expression ast.Expression, value any) b
 	case bool:
 		return testBooleanLiteral(t, expression, v)
 	case string:
-		return testStringLiteral(t, expression, v)
+		switch expression.(type) {
+		case *ast.Identifier:
+			return testIdentifier(t, expression, v)
+		case *ast.StringLiteral:
+			return testStringLiteral(t, expression, v)
+		default:
+			t.Errorf("type of exp not handled. got=%T", expression)
+			return false
+		}
 	default:
 		t.Errorf("type of exp not handled. got=%T", expression)
 		return false
