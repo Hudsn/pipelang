@@ -18,10 +18,6 @@ type Statement interface {
 type Expression interface {
 	Node
 	expressionNode()
-}
-
-type ExpressionDebugger interface {
-	Expression
 	String() string
 }
 
@@ -80,7 +76,7 @@ func (i *IfStatement) Position() token.Position {
 
 type BlockStatement struct {
 	OpenToken  token.Token
-	CloseToken token.Token // we'll need to populate this based on expectToken in parser func for block statements
+	CloseToken token.Token
 	Statements []Statement
 }
 
@@ -89,6 +85,23 @@ func (bs *BlockStatement) Position() token.Position {
 	first, _ := bs.OpenToken.Position.GetPosition()
 	_, last := bs.CloseToken.Position.GetPosition()
 	return newPosition(first, last)
+}
+
+type AssignStatement struct {
+	Token token.Token
+	Name  *Identifier
+	Value Expression
+}
+
+func (as *AssignStatement) statementNode() {}
+func (as *AssignStatement) Position() token.Position {
+	startPos := as.Name.Position()
+	start, _ := startPos.GetPosition()
+	endPos := as.Value.Position()
+	_, end := endPos.GetPosition()
+	pos := &token.Position{}
+	pos.SetPosition(start, end)
+	return *pos
 }
 
 //
@@ -156,6 +169,46 @@ func (s *StringLiteral) Position() token.Position {
 }
 func (s *StringLiteral) String() string {
 	return fmt.Sprintf(`"%s"`, s.Value)
+}
+
+type PrefixExpression struct {
+	Token    token.Token
+	Operator string
+	Right    Expression
+}
+
+func (pe *PrefixExpression) expressionNode() {}
+func (pe *PrefixExpression) Position() token.Position {
+	start, _ := pe.Token.Position.GetPosition()
+	rightPos := pe.Right.Position()
+	_, end := rightPos.GetPosition()
+	pos := &token.Position{}
+	pos.SetPosition(start, end)
+	return *pos
+}
+func (pe *PrefixExpression) String() string {
+	return fmt.Sprintf("( %s%s )", pe.Operator, pe.Right.String())
+}
+
+type InfixExpression struct {
+	Token    token.Token
+	Left     Expression
+	Operator string
+	Right    Expression
+}
+
+func (ie *InfixExpression) expressionNode() {}
+func (ie *InfixExpression) Position() token.Position {
+	leftPos := ie.Left.Position()
+	rightPos := ie.Right.Position()
+	start, _ := leftPos.GetPosition()
+	_, end := rightPos.GetPosition()
+	pos := &token.Position{}
+	pos.SetPosition(start, end)
+	return *pos
+}
+func (ie *InfixExpression) String() string {
+	return fmt.Sprintf("( %s %s %s )", ie.Left.String(), ie.Operator, ie.Right.String())
 }
 
 //

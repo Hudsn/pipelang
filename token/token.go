@@ -59,6 +59,9 @@ const (
 	SLASH       // "/"
 	EXCLAMATION // "!"
 	PIPECHAR    // "|"
+	ARROW       // ~>
+	LOGIC_OR    // ||
+	LOGIC_AND   // &&
 
 	//comparisons
 	EQ     // "=="
@@ -124,6 +127,7 @@ var stringTable = map[TokenType]string{
 	STRING:      "string",
 	INT:         "integer",
 	FLOAT:       "float",
+	ARROW:       `arrow ("~>")`,
 	ASSIGN:      `assign ("=")`,
 	PLUS:        `plus ("+")`,
 	MINUS:       `minus ("-")`,

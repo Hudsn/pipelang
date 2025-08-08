@@ -8,6 +8,81 @@ import (
 	"github.com/hudsn/pipelang/utils/testutils"
 )
 
+func TestLogicAnd(t *testing.T) {
+	input := "a && b"
+	cases := []testCase{
+		{
+			value:     "a",
+			tokenType: token.IDENT,
+			start:     0,
+			end:       1,
+		},
+		{
+			value:     "&&",
+			tokenType: token.LOGIC_AND,
+			start:     2,
+			end:       4,
+		},
+		{
+			value:     "b",
+			tokenType: token.IDENT,
+			start:     5,
+			end:       6,
+		},
+	}
+	checkTestCase(t, input, cases)
+}
+func TestLogicOr(t *testing.T) {
+	input := "a || b"
+	cases := []testCase{
+		{
+			value:     "a",
+			tokenType: token.IDENT,
+			start:     0,
+			end:       1,
+		},
+		{
+			value:     "||",
+			tokenType: token.LOGIC_OR,
+			start:     2,
+			end:       4,
+		},
+		{
+			value:     "b",
+			tokenType: token.IDENT,
+			start:     5,
+			end:       6,
+		},
+	}
+	checkTestCase(t, input, cases)
+}
+
+func TestLexArrow(t *testing.T) {
+	input := "abc ~> 123"
+
+	cases := []testCase{
+		{
+			value:     "abc",
+			tokenType: token.IDENT,
+			start:     0,
+			end:       3,
+		},
+		{
+			value:     "~>",
+			tokenType: token.ARROW,
+			start:     4,
+			end:       6,
+		},
+		{
+			value:     "123",
+			tokenType: token.INT,
+			start:     7,
+			end:       10,
+		},
+	}
+	checkTestCase(t, input, cases)
+}
+
 func TestLexInt(t *testing.T) {
 	input := "1234"
 

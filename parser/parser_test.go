@@ -8,6 +8,20 @@ import (
 	"github.com/hudsn/pipelang/utils/testutils"
 )
 
+func TestAssignStatement(t *testing.T) {
+	input := "a = 2"
+	program := setupTestWithInput(t, input)
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected len of parsed program to be 1. got=%d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.AssignStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.AssignStatement. got=%T", program.Statements[0])
+	}
+	testIdentifier(t, stmt.Name, "a")
+
+}
+
 func TestFloatLiteral(t *testing.T) {
 	tests := []struct {
 		input string
@@ -100,6 +114,7 @@ func TestIfStatement(t *testing.T) {
 		t.Fatalf("program.Statements[0] is not *ast.IfStatement. got=%T", program.Statements[0])
 	}
 	testBooleanLiteral(t, ifStmt.Condition, true)
+
 	if len(ifStmt.Consequence.Statements) != 1 {
 		t.Fatalf("expected len of consequence block of if-statement to be 1. got=%d", len(ifStmt.Consequence.Statements))
 	}

@@ -53,8 +53,14 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.COMMA, l.currentChar)
 		tok.SetPosition(l.currentIdx, l.nextIdx)
 	case '|':
-		tok = newToken(token.PIPECHAR, l.currentChar)
-		tok.SetPosition(l.currentIdx, l.nextIdx)
+		start := l.currentIdx
+		tok = l.handlePipeChar()
+		tok.SetPosition(start, l.nextIdx)
+	case '&':
+		//TODO
+		start := l.currentIdx
+		tok = l.handleAmpersand()
+		tok.SetPosition(start, l.nextIdx)
 	case '"':
 		tok = l.readString()
 		return tok
@@ -119,6 +125,19 @@ func (l *Lexer) NextToken() token.Token {
 		l.readNext()
 		l.maybeAddSemicolon()
 		return tok
+	case '~':
+		if l.peekNext() == '>' {
+			start := l.currentIdx
+			l.readNext()
+			tok = token.Token{
+				Type:  token.ARROW,
+				Value: string(l.input[start:l.nextIdx]),
+			}
+			tok.SetPosition(start, l.nextIdx)
+		} else {
+			tok = newToken(token.ILLEGAL, l.currentChar)
+			tok.SetPosition(l.currentIdx, l.nextIdx)
+		}
 	default:
 		if isDigit(l.currentChar) {
 			tok = l.readNumber()
@@ -242,6 +261,33 @@ func (l *Lexer) safeIdx(idx int) int {
 	return idx
 }
 
+func (l *Lexer) handleAmpersand() token.Token {
+	tok := &token.Token{
+		Type:  token.ILLEGAL,
+		Value: string(l.currentChar),
+	}
+	if l.peekNext() == '&' {
+		start := l.currentIdx
+		l.readNext()
+		tok.Type = token.LOGIC_AND
+		tok.Value = string(l.input[start:l.nextIdx])
+	}
+	return *tok
+}
+func (l *Lexer) handlePipeChar() token.Token {
+	tok := &token.Token{
+		Type:  token.PIPECHAR,
+		Value: string(l.currentChar),
+	}
+	if l.peekNext() == '|' {
+		start := l.currentIdx
+		l.readNext()
+		tok.Type = token.LOGIC_OR
+		tok.Value = string(l.input[start:l.nextIdx])
+	}
+	return *tok
+}
+
 func (l *Lexer) handleDot() token.Token {
 	tok := &token.Token{
 		Type:  token.DOT,
@@ -263,7 +309,6 @@ func (l *Lexer) handleEquals() token.Token {
 		l.readNext()
 		tok.Type = token.EQ
 		tok.Value = string(l.input[start:l.nextIdx])
-		return *tok
 	}
 	return *tok
 }
@@ -277,7 +322,7 @@ func (l *Lexer) handleExclamation() token.Token {
 		l.readNext()
 		tok.Type = token.NOT_EQ
 		tok.Value = string(l.input[start:l.nextIdx])
-		return *tok
+
 	}
 	return *tok
 }
@@ -292,7 +337,6 @@ func (l *Lexer) handleGT() token.Token {
 		l.readNext()
 		tok.Type = token.GTEQ
 		tok.Value = string(l.input[start:l.nextIdx])
-		return *tok
 	}
 	return *tok
 }
@@ -306,7 +350,6 @@ func (l *Lexer) handleLT() token.Token {
 		l.readNext()
 		tok.Type = token.LTEQ
 		tok.Value = string(l.input[start:l.nextIdx])
-		return *tok
 	}
 	return *tok
 }
