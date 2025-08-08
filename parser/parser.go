@@ -27,7 +27,7 @@ const (
 	ARROW          // ~>
 	ASSIGN         // =
 	LOGIC_OP       // || &&
-	EQUALITY       // == != < > <= >=
+	EQUALITY       // == !=
 	COMPARISON     // < > <= >=
 	SUM            // + -
 	PRODUCT        // * /
@@ -36,21 +36,23 @@ const (
 )
 
 var precedenceMap = map[token.TokenType]int{
-	token.ASSIGN:   ASSIGN,
-	token.EQ:       EQUALITY,
-	token.NOT_EQ:   EQUALITY,
-	token.LT:       COMPARISON,
-	token.LTEQ:     COMPARISON,
-	token.GT:       COMPARISON,
-	token.GTEQ:     COMPARISON,
-	token.PLUS:     SUM,
-	token.MINUS:    SUM,
-	token.ASTERISK: PRODUCT,
-	token.SLASH:    PRODUCT,
-	token.LPAREN:   CHAIN_CALL_IDX,
-	token.DOT:      CHAIN_CALL_IDX,
-	token.LSQUARE:  CHAIN_CALL_IDX,
-	token.ARROW:    ARROW,
+	token.ASSIGN:    ASSIGN,
+	token.EQ:        EQUALITY,
+	token.NOT_EQ:    EQUALITY,
+	token.LT:        COMPARISON,
+	token.LTEQ:      COMPARISON,
+	token.GT:        COMPARISON,
+	token.GTEQ:      COMPARISON,
+	token.PLUS:      SUM,
+	token.MINUS:     SUM,
+	token.ASTERISK:  PRODUCT,
+	token.SLASH:     PRODUCT,
+	token.LPAREN:    CHAIN_CALL_IDX,
+	token.DOT:       CHAIN_CALL_IDX,
+	token.LSQUARE:   CHAIN_CALL_IDX,
+	token.ARROW:     ARROW,
+	token.LOGIC_AND: LOGIC_OP,
+	token.LOGIC_OR:  LOGIC_OP,
 }
 
 type prefixFunc func() ast.Expression
@@ -79,6 +81,28 @@ func (p *Parser) registerFuncs() {
 	p.registerPrefixFunc(token.FALSE, p.parseBoolean)
 	p.registerPrefixFunc(token.IDENT, p.parseIdentifier)
 	p.registerPrefixFunc(token.STRING, p.parseString)
+	p.registerPrefixFunc(token.IF, p.parseIfExpression)
+	p.registerPrefixFunc(token.LPAREN, p.parseGroupedExpression)
+	p.registerPrefixFunc(token.MINUS, p.parsePrefixExpression)
+	p.registerPrefixFunc(token.EXCLAMATION, p.parsePrefixExpression)
+
+	p.registerInfixFunc(token.PLUS, p.parseInfixExpression)
+	p.registerInfixFunc(token.MINUS, p.parseInfixExpression)
+	p.registerInfixFunc(token.ASTERISK, p.parseInfixExpression)
+	p.registerInfixFunc(token.SLASH, p.parseInfixExpression)
+	p.registerInfixFunc(token.LOGIC_OR, p.parseInfixExpression)
+	p.registerInfixFunc(token.LOGIC_AND, p.parseInfixExpression)
+	p.registerInfixFunc(token.EQ, p.parseInfixExpression)
+	p.registerInfixFunc(token.NOT_EQ, p.parseInfixExpression)
+	p.registerInfixFunc(token.LT, p.parseInfixExpression)
+	p.registerInfixFunc(token.LTEQ, p.parseInfixExpression)
+	p.registerInfixFunc(token.GT, p.parseInfixExpression)
+	p.registerInfixFunc(token.GTEQ, p.parseInfixExpression)
+	// TODO
+	// p.registerInfixFunc(token.ARROW, p.parseArrowExpression)
+	// p.registerInfixFunc(token.DOT, p.parseDotAccessExpression)
+	// p.registerInfixFunc(token.LPAREN, p.parseFunctionCallExpression)
+	// p.registerInfixFunc(token.LSQUARE, p.parseIndexExpression)
 
 }
 
@@ -116,13 +140,11 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		return p.parseExpressionStatement()
 	case token.PIPEDEF:
-		// handle pipedef
+		// TODO handle pipedef
 		return nil
 	case token.PIPECHAR:
-		// handle pipe invocation
+		// TODO handle pipe invocation
 		return nil
-	case token.IF:
-		return p.parseIfStatement()
 	default:
 		// handle rest of expressions
 		return p.parseExpressionStatement()
@@ -169,7 +191,7 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 func (p *Parser) parsePrefixExpression() ast.Expression {
 	exp := &ast.PrefixExpression{Token: p.currentToken, Operator: p.currentToken.Value}
 	p.progressTokens()
-	exp.Right = p.parseExpression(LOWEST)
+	exp.Right = p.parseExpression(PREFIX)
 	return exp
 }
 
@@ -235,8 +257,17 @@ func (p *Parser) parseString() ast.Expression {
 	return &ast.StringLiteral{Token: p.currentToken, Value: p.currentToken.Value}
 }
 
-func (p *Parser) parseIfStatement() ast.Statement {
-	ret := &ast.IfStatement{Token: p.currentToken}
+func (p *Parser) parseGroupedExpression() ast.Expression {
+	p.progressTokens()
+	exp := p.parseExpression(LOWEST)
+	if !p.mustNextToken(token.RPAREN) {
+		return nil
+	}
+	return exp
+}
+
+func (p *Parser) parseIfExpression() ast.Expression {
+	ret := &ast.IfExpression{Token: p.currentToken}
 
 	p.progressTokens()
 	condition := p.parseExpression(LOWEST)
@@ -256,7 +287,7 @@ func (p *Parser) parseIfStatement() ast.Statement {
 
 		switch p.currentToken.Type {
 		case token.IF:
-			alt := p.parseIfStatement()
+			alt := p.parseIfExpression()
 			ret.Alternative = alt
 		case token.LCURLY:
 			alt := p.parseBlockStatement()

@@ -2,12 +2,22 @@ package ast
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hudsn/pipelang/token"
 )
 
+//TODO:
+// add function call
+
+// add index expr
+
+// add dot access expression
+// token, object (left) expression, property (right) identifier
+
 type Node interface {
 	Position() token.Position
+	String() string
 }
 
 type Statement interface {
@@ -18,7 +28,6 @@ type Statement interface {
 type Expression interface {
 	Node
 	expressionNode()
-	String() string
 }
 
 //
@@ -37,6 +46,14 @@ func (p *Program) Position() token.Position {
 	}
 	return token.NullPosition
 }
+func (p *Program) String() string {
+	stmts := []string{}
+	for _, s := range p.Statements {
+		stmts = append(stmts, s.String())
+	}
+
+	return strings.Join(stmts, "\n")
+}
 
 //
 //statements: expressionstatement(meta), if, pipedef, pipechar
@@ -48,31 +65,19 @@ type ExpressionStatement struct {
 }
 
 func (es *ExpressionStatement) statementNode() {}
-func (ex *ExpressionStatement) Position() token.Position {
-	first, _ := ex.Token.Position.GetPosition()
-	_, last := getNodePositions(ex.Expression)
+func (es *ExpressionStatement) Position() token.Position {
+	first, _ := es.Token.Position.GetPosition()
+	_, last := getNodePositions(es.Expression)
 	return newPosition(first, last)
+}
+func (es *ExpressionStatement) String() string {
+	if es.Expression != nil {
+		return es.Expression.String()
+	}
+	return ""
 }
 
 //
-
-type IfStatement struct {
-	Token       token.Token
-	Condition   Expression
-	Consequence *BlockStatement
-	Alternative Statement // block statement or ifstatement
-}
-
-func (i *IfStatement) statementNode() {}
-func (i *IfStatement) Position() token.Position {
-	first, _ := i.Token.Position.GetPosition()
-	var last int
-	if i.Alternative == nil {
-		_, last = getNodePositions(i.Consequence)
-		return newPosition(first, last)
-	}
-	return newPosition(getNodePositions(i.Alternative))
-}
 
 type BlockStatement struct {
 	OpenToken  token.Token
@@ -85,6 +90,14 @@ func (bs *BlockStatement) Position() token.Position {
 	first, _ := bs.OpenToken.Position.GetPosition()
 	_, last := bs.CloseToken.Position.GetPosition()
 	return newPosition(first, last)
+}
+func (bs *BlockStatement) String() string {
+	stmts := []string{}
+	for _, s := range bs.Statements {
+		stmts = append(stmts, s.String())
+	}
+
+	return strings.Join(stmts, "\n")
 }
 
 type AssignStatement struct {
@@ -102,6 +115,9 @@ func (as *AssignStatement) Position() token.Position {
 	pos := &token.Position{}
 	pos.SetPosition(start, end)
 	return *pos
+}
+func (as *AssignStatement) String() string {
+	return fmt.Sprintf("%s = %s", as.Name.String(), as.Value.String())
 }
 
 //
@@ -171,6 +187,68 @@ func (s *StringLiteral) String() string {
 	return fmt.Sprintf(`"%s"`, s.Value)
 }
 
+type ArrowFunctionExpression struct {
+	Token           token.Token
+	Params          []Identifier
+	QueryExpression Expression
+	start           int
+}
+
+func (f *ArrowFunctionExpression) expressionNode() {}
+func (f *ArrowFunctionExpression) Position() token.Position {
+	bpos := f.QueryExpression.Position()
+	_, end := bpos.GetPosition()
+	pos := &token.Position{}
+	pos.SetPosition(f.start, end)
+	return *pos
+}
+func (f *ArrowFunctionExpression) String() string {
+	params := ""
+	switch len(f.Params) {
+	case 0:
+		return ""
+	case 1:
+		params = f.Params[0].String()
+	default:
+		paramList := []string{}
+		for _, p := range f.Params {
+			paramList = append(paramList, p.String())
+		}
+		params = fmt.Sprintf("( %s )", strings.Join(paramList, ", "))
+	}
+	return fmt.Sprintf("%s -> %s", params, f.QueryExpression.String())
+}
+
+type IfExpression struct {
+	Token       token.Token
+	Condition   Expression
+	Consequence *BlockStatement
+	Alternative Node // block statement or ifExpression
+}
+
+func (i *IfExpression) expressionNode() {}
+func (i *IfExpression) Position() token.Position {
+	first, _ := i.Token.Position.GetPosition()
+	var last int
+	if i.Alternative == nil {
+		_, last = getNodePositions(i.Consequence)
+		return newPosition(first, last)
+	}
+	return newPosition(getNodePositions(i.Alternative))
+}
+func (i *IfExpression) String() string {
+	ret := fmt.Sprintf("if %s { %s }", i.Condition.String(), i.Consequence.String())
+	if i.Alternative != nil {
+		switch alt := i.Alternative.(type) {
+		case *BlockStatement:
+			ret += fmt.Sprintf(" else { %s }", alt.String())
+		case *IfExpression:
+			ret += fmt.Sprintf(" else %s", alt.String())
+		}
+	}
+	return ret
+}
+
 type PrefixExpression struct {
 	Token    token.Token
 	Operator string
@@ -187,7 +265,7 @@ func (pe *PrefixExpression) Position() token.Position {
 	return *pos
 }
 func (pe *PrefixExpression) String() string {
-	return fmt.Sprintf("( %s%s )", pe.Operator, pe.Right.String())
+	return fmt.Sprintf("(%s%s)", pe.Operator, pe.Right.String())
 }
 
 type InfixExpression struct {
@@ -208,7 +286,7 @@ func (ie *InfixExpression) Position() token.Position {
 	return *pos
 }
 func (ie *InfixExpression) String() string {
-	return fmt.Sprintf("( %s %s %s )", ie.Left.String(), ie.Operator, ie.Right.String())
+	return fmt.Sprintf("(%s %s %s)", ie.Left.String(), ie.Operator, ie.Right.String())
 }
 
 //
