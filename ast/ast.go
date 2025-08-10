@@ -8,7 +8,6 @@ import (
 )
 
 //TODO:
-// add function call
 
 // add index expr
 
@@ -244,11 +243,64 @@ func (f *ArrowFunctionExpression) String() string {
 
 //
 
+type DotAccess struct {
+	Token  token.Token
+	Object Expression
+	Item   Expression
+}
+
+func (da *DotAccess) expressionNode() {}
+func (da *DotAccess) Position() token.Position {
+	objPos := da.Object.Position()
+	start, _ := objPos.GetPosition()
+	namePos := da.Object.Position()
+	_, end := namePos.GetPosition()
+
+	pos := &token.Position{}
+	pos.SetPosition(start, end)
+	return *pos
+}
+func (da *DotAccess) GetToken() token.Token { return da.Token }
+func (da *DotAccess) String() string {
+	return fmt.Sprintf("%s.%s", da.Object.String(), da.Item.String())
+}
+
+//
+
+type Argument struct {
+	Token token.Token
+	Name  *Identifier // nil value for positional args
+	Value Expression
+}
+
+// note for parsing impl: after first named arg in function call, all other must also be named.
+
+func (a *Argument) expressionNode()       {}
+func (a *Argument) GetToken() token.Token { return a.Token }
+func (a *Argument) Position() token.Position {
+	namePos := a.Name.Position()
+	start, _ := namePos.GetPosition()
+	valPos := a.Value.Position()
+	_, end := valPos.GetPosition()
+	pos := &token.Position{}
+	pos.SetPosition(start, end)
+	return *pos
+}
+func (a *Argument) String() string {
+	ret := a.Value.String()
+	if a.Name != nil {
+		ret = fmt.Sprintf("%s: %s", a.Name.Value, ret)
+	}
+	return ret
+}
+
+//
+
 type CallExpression struct {
 	Token     token.Token
 	Name      *Identifier
-	Arguments []Expression
-	endPos    int
+	Arguments []*Argument
+	EndPos    int
 }
 
 func (ce *CallExpression) expressionNode()       {}
@@ -257,7 +309,7 @@ func (ce *CallExpression) Position() token.Position {
 	namePos := ce.Name.Position()
 	start, _ := namePos.GetPosition()
 	pos := &token.Position{}
-	pos.SetPosition(start, ce.endPos)
+	pos.SetPosition(start, ce.EndPos)
 	return *pos
 }
 func (ce *CallExpression) String() string {

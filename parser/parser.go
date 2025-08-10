@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/hudsn/pipelang/ast"
@@ -100,8 +101,8 @@ func (p *Parser) registerFuncs() {
 	p.registerInfixFunc(token.GTEQ, p.parseInfixExpression)
 	p.registerInfixFunc(token.ARROW, p.parseArrowFunctionExpression)
 	p.registerInfixFunc(token.LPAREN, p.parseCallExpression)
+	p.registerInfixFunc(token.DOT, p.parseDotAccessExpression)
 	// TODO
-	// p.registerInfixFunc(token.DOT, p.parseDotAccessExpression)
 	// p.registerInfixFunc(token.LSQUARE, p.parseIndexExpression)
 
 }
@@ -123,8 +124,8 @@ func (p *Parser) ParseProgram() (*ast.Program, error) {
 		program.Statements = append(program.Statements, statement)
 		p.progressTokens()
 	}
-	if p.isCurrentToken(token.ILLEGAL) {
-		return nil, newParsingError(fmt.Errorf("illegal token"), p.lexer.InputRunes(), p.currentToken)
+	if len(p.errors) > 0 {
+		return nil, p.errors[0]
 	}
 
 	return program, nil
@@ -274,8 +275,68 @@ func (p *Parser) parseCallExpression(left ast.Expression) ast.Expression {
 	}
 	ret.Name = ident
 
-	ret.Arguments = p.parseExpressionList(token.RPAREN)
+	ret.Arguments = p.parseCallArgs()
+	_, end := p.currentToken.Position.GetPosition()
+	ret.EndPos = end
 	return ret
+}
+
+func (p *Parser) parseCallArgs() []*ast.Argument {
+	// enter function still on opening character
+	// for example we are still on the '(' in: (arg1, arg2, arg3)
+
+	// end early if empty enclosure chars like ()
+	// make sure to end on closing char
+	if p.isPeekToken(token.RPAREN) {
+		p.progressTokens()
+		return []*ast.Argument{}
+	}
+
+	p.progressTokens() // now on first substantive arg entry
+	arg, usedNamedArg := p.parseFunctionArgument(false)
+	ret := []*ast.Argument{arg}
+
+	for p.isPeekToken(token.COMMA) {
+		p.progressTokens() // skip comma to next entry
+		p.progressTokens() // on next substantive entry
+		arg, usedNamedArg = p.parseFunctionArgument(usedNamedArg)
+		ret = append(ret, arg)
+	}
+
+	if slices.Contains(ret, nil) {
+		return nil
+	}
+	if !p.mustNextToken(token.RPAREN) {
+		return nil
+	}
+
+	return ret
+}
+
+func (p *Parser) parseFunctionArgument(encounteredNamedArg bool) (*ast.Argument, bool) {
+	ret := &ast.Argument{Name: nil}
+
+	if p.isPeekToken(token.COLON) { // colon indicates named arg
+		tokSnapshot := p.currentToken // save current tok for potential err
+		nameExpr := p.parseExpression(LOWEST)
+		name, ok := nameExpr.(*ast.Identifier)
+		if !ok {
+			p.errUnexpectedToken(tokSnapshot)
+		}
+		ret.Name = name
+		p.progressTokens() // to colon
+		p.progressTokens() // to arg value
+		encounteredNamedArg = true
+	} else if encounteredNamedArg {
+		err := fmt.Errorf("positional arguments cannot come after named arguments")
+		err = newParsingError(err, p.lexer.InputRunes(), p.currentToken)
+		p.errors = append(p.errors, err)
+		return nil, encounteredNamedArg
+	}
+	ret.Token = p.currentToken
+	ret.Value = p.parseExpression(LOWEST)
+
+	return ret, encounteredNamedArg
 }
 
 func (p *Parser) parseExpressionList(endType token.TokenType) []ast.Expression {
@@ -320,6 +381,13 @@ func (p *Parser) parseArrowFunctionExpression(left ast.Expression) ast.Expressio
 
 	ret.QueryExpression = p.parseExpression(LOWEST)
 
+	return ret
+}
+
+func (p *Parser) parseDotAccessExpression(left ast.Expression) ast.Expression {
+	ret := &ast.DotAccess{Token: p.currentToken, Object: left}
+	p.progressTokens()
+	ret.Item = p.parseExpression(LOWEST)
 	return ret
 }
 

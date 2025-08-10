@@ -1,12 +1,146 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/hudsn/pipelang/ast"
 	"github.com/hudsn/pipelang/lexer"
+	"github.com/hudsn/pipelang/token"
 	"github.com/hudsn/pipelang/utils/testutils"
 )
+
+func TestPrefixExpression(t *testing.T) {
+
+}
+
+func TestInfixExpression(t *testing.T) {
+
+}
+
+func TestPipeDefStatement(t *testing.T) {
+
+}
+
+func TestPipeCallStatement(t *testing.T) {
+
+}
+
+func TestNamedArgsValid(t *testing.T) {
+	input := "myFunc(a, 'b', third: 'c', fourth: d)"
+	tests := []struct {
+		isNil   bool
+		name    string
+		value   string
+		argType token.TokenType
+	}{
+		{true, "", "a", token.IDENT},
+		{true, "", "b", token.STRING},
+		{false, "third", "c", token.STRING},
+		{false, "fourth", "d", token.IDENT},
+	}
+	program := setupTestWithInput(t, input)
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected len of parsed program to be 1. got=%d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	callExpr, ok := stmt.Expression.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not *ast.CallExpression. got=%T", stmt.Expression)
+	}
+	if len(callExpr.Arguments) != len(tests) {
+		t.Fatalf("expected length of callExpr.Arguments to be equal to number of tests. arg_len=%d tests_len=%d", len(callExpr.Arguments), len(tests))
+	}
+	for tidx, tt := range tests {
+		arg := callExpr.Arguments[tidx]
+		if tt.isNil {
+			if arg.Name != nil {
+				t.Errorf("expected name to be nil. got %+v", arg.Name)
+			}
+		} else {
+			if arg.Name == nil {
+				t.Errorf("expected name to not be nil. got nil instead")
+			}
+			if arg.Name.Value != tt.name {
+				t.Errorf("expected arg name to be %q. got=%q", tt.name, arg.Name.Value)
+			}
+		}
+		testLiteralExpression(t, arg.Value, tt.value)
+		if arg.Token.Type != tt.argType {
+			t.Errorf("expected token type of %s. got=%s", tt.argType.HumanString(), tt.argType.HumanString())
+		}
+	}
+
+}
+func TestNamedArgsInvalid(t *testing.T) {
+	input := "myFunc(a, b, named: c, d)"
+	lexer := lexer.New([]rune(input))
+	p := New(lexer)
+	_, err := p.ParseProgram()
+	if err == nil {
+		t.Fatal("expected an error related to badly-ordered function args. got no error")
+	}
+	if !strings.Contains(err.Error(), "positional arguments cannot come after named arguments") {
+		t.Errorf("expected error to be related to positional arugments. got=%s", err.Error())
+	}
+}
+
+// TODO LINE -- move items below line after finished
+
+func TestDotAccessExpression(t *testing.T) {
+	input := "myObj.myAttr.myMethod(argument1)"
+	program := setupTestWithInput(t, input)
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected len of parsed program to be 1. got=%d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	myObjDotExpr, ok := stmt.Expression.(*ast.DotAccess)
+	if !ok {
+		t.Fatalf("stmt.Expression is not *ast.DotAccess. got=%T", stmt.Expression)
+	}
+	myObjIdent, ok := myObjDotExpr.Object.(*ast.Identifier)
+	if !ok {
+		t.Fatalf("myObjDotExpr.Object is not *ast.Identifier")
+	}
+	if myObjIdent.String() != "myObj" {
+		t.Errorf("expected first ident in chain to be myObj. got=%s", myObjIdent.String())
+	}
+	myAttrDot, ok := myObjDotExpr.Item.(*ast.DotAccess)
+	if !ok {
+		t.Fatalf("dotExpr.Item is not *ast.DotAccess. got=%T", myObjDotExpr.Item)
+	}
+	myAttrIdent, ok := myAttrDot.Object.(*ast.Identifier)
+	if !ok {
+		t.Fatalf("myAttrDot.Object is not *ast.Identifier. got=%T", myAttrDot.Item)
+	}
+	if myAttrIdent.String() != "myAttr" {
+		t.Errorf("expected second ident in chain to by myAttr. got=%s", myAttrIdent.String())
+	}
+
+	myMethodCall, ok := myAttrDot.Item.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("myAttrDot.Item is not *ast.CallExpression. got=%T", myAttrDot.Item)
+	}
+
+	if len(myMethodCall.Arguments) != 1 {
+		t.Fatalf("expected length of myMethod args to be 1. got=%d", len(myMethodCall.Arguments))
+	}
+
+	testIdentifier(t, myMethodCall.Arguments[0].Value, "argument1")
+	if myMethodCall.Arguments[0].Name != nil {
+		t.Errorf("expected arg name to be nil. Instead got %+v", myMethodCall.Arguments[0].Name)
+	}
+
+	if myMethodCall.Name.Value != "myMethod" {
+		t.Errorf("expected name of method call to be myMethod. got=%s", myMethodCall.Name.Value)
+	}
+}
 
 func TestFunctionCallExpression(t *testing.T) {
 	input := "myFunc(a, b, c)"
@@ -34,35 +168,21 @@ func TestFunctionCallExpression(t *testing.T) {
 	}
 
 	for idx, arg := range call.Arguments {
-		testLiteralExpression(t, arg, argTests[idx])
+		testLiteralExpression(t, arg.Value, argTests[idx])
+		if arg.Name != nil {
+			t.Errorf("expected arg name to be nil. Instead got %+v", arg.Name)
+		}
 	}
 
 	if isEq, failMsg := testutils.Equal("(", call.Token.Value); !isEq {
 		t.Errorf("wrong token value for CallExpression: %s", failMsg)
 	}
+	wantPos := token.Position{}
+	wantPos.SetPosition(0, 15)
+	if isEq, failMsg := testutils.Equal(wantPos, call.Position()); !isEq {
+		t.Errorf("wrong position value for CallExpression: %s", failMsg)
+	}
 }
-
-func TestPrefixExpression(t *testing.T) {
-
-}
-
-func TestInfixExpression(t *testing.T) {
-
-}
-
-func TestPipeDefStatement(t *testing.T) {
-
-}
-
-func TestPipeCallStatement(t *testing.T) {
-
-}
-
-func TestDotAccessExpression(t *testing.T) {
-
-}
-
-// TODO LINE -- move items below line after finished
 
 func TestArrowFunctionExpression(t *testing.T) {
 	input := "a ~> c || d"
