@@ -15,7 +15,28 @@ func TestPrefixExpression(t *testing.T) {
 }
 
 func TestInfixExpression(t *testing.T) {
-
+	tests := []struct {
+		input    string
+		leftVal  interface{}
+		operator string
+		rightVal interface{}
+	}{
+		{"5 + 5;", 5, "+", 5},
+		{"5 - 5;", 5, "-", 5},
+		{"5 * 5;", 5, "*", 5},
+		{"5 / 5;", 5, "/", 5},
+	}
+	for _, tt := range tests {
+		program := setupTestWithInput(t, tt.input)
+		if len(program.Statements) != 1 {
+			t.Fatalf("expected len of program to be 1. got=%d", len(program.Statements))
+		}
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("program.Staements[0] is not *ast.ExpressionStatement. got=%T", program.Statements[0])
+		}
+		testInfixExpression(t, stmt.Expression, tt.leftVal, tt.operator, tt.rightVal)
+	}
 }
 
 func TestPipeDefStatement(t *testing.T) {
