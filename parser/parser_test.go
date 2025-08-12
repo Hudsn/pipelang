@@ -11,7 +11,32 @@ import (
 )
 
 func TestPrefixExpression(t *testing.T) {
-
+	tests := []struct {
+		input    string
+		operator string
+		right    interface{}
+	}{
+		{"!true", "!", true},
+		{"-5", "-", 5},
+	}
+	for _, tt := range tests {
+		program := setupTestWithInput(t, tt.input)
+		if len(program.Statements) != 1 {
+			t.Fatalf("expected len of program to be 1. got=%d", len(program.Statements))
+		}
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("program.Staements[0] is not *ast.ExpressionStatement. got=%T", program.Statements[0])
+		}
+		expr, ok := stmt.Expression.(*ast.PrefixExpression)
+		if !ok {
+			t.Fatalf("stmt.Expression is not *ast.InfixExpression. got=%T", stmt.Expression)
+		}
+		if expr.Operator != tt.operator {
+			t.Errorf("expected operator to be %s. got=%s", tt.operator, expr.Operator)
+		}
+		testLiteralExpression(t, expr.Right, tt.right)
+	}
 }
 
 func TestInfixExpression(t *testing.T) {
