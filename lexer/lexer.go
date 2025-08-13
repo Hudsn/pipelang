@@ -251,16 +251,6 @@ func (l *Lexer) handleWhitespace() {
 	}
 }
 
-// Other helpers
-
-// returns the target index unless it is out of bounds. Then it just returns a safe max idx (length of input)
-func (l *Lexer) safeIdx(idx int) int {
-	if idx >= len(l.input) {
-		return len(l.input)
-	}
-	return idx
-}
-
 func (l *Lexer) handleAmpersand() token.Token {
 	tok := &token.Token{
 		Type:  token.ILLEGAL,
